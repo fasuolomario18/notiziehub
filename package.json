@@ -10,6 +10,7 @@
     "collect": "tsx scripts/collect.ts",
     "discover": "tsx scripts/discover.ts",
     "media": "tsx scripts/media.ts",
+    "media:full": "tsx scripts/media-full.ts",
     "index-urls": "tsx scripts/index-urls.ts",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push --force"

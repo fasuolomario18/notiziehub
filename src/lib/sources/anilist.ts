@@ -94,3 +94,88 @@ export const fetchTopAnime = (pages = 2, perPage = 50) =>
   fetchTopMedia("ANIME", pages, perPage);
 export const fetchTopManga = (pages = 2, perPage = 50) =>
   fetchTopMedia("MANGA", pages, perPage);
+
+const YEAR_QUERY = `
+query ($page: Int, $perPage: Int, $type: MediaType, $from: FuzzyDateInt, $to: FuzzyDateInt) {
+  Page(page: $page, perPage: $perPage) {
+    pageInfo { hasNextPage }
+    media(type: $type, sort: POPULARITY_DESC, startDate_greater: $from, startDate_lesser: $to) {
+      id
+      title { romaji english }
+      popularity
+      averageScore
+      genres
+      siteUrl
+      coverImage { medium }
+      description(asHtml: false)
+    }
+  }
+}`;
+
+/**
+ * Cataloghi INTERI: pagina anno per anno (così si supera il tetto di 5000 entries
+ * della paginazione semplice). Recente → vecchio. Stop a maxItems.
+ */
+export async function fetchMediaByYears(
+  type: "ANIME" | "MANGA",
+  fromYear: number,
+  toYear: number,
+  maxItems = 100000
+): Promise<AnimeItem[]> {
+  const out: AnimeItem[] = [];
+  const seen = new Set<number>();
+  for (let year = toYear; year >= fromYear && out.length < maxItems; year--) {
+    let page = 1;
+    while (out.length < maxItems) {
+      let json: {
+        data?: { Page?: { pageInfo?: { hasNextPage?: boolean }; media?: Array<Record<string, unknown>> } };
+      };
+      try {
+        const res = await fetch(ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({
+            query: YEAR_QUERY,
+            variables: { page, perPage: 50, type, from: year * 10000, to: (year + 1) * 10000 },
+          }),
+        });
+        if (res.status === 429) {
+          await new Promise((r) => setTimeout(r, 60000)); // rate limit: aspetta
+          continue;
+        }
+        if (!res.ok) break;
+        json = await res.json();
+      } catch {
+        break;
+      }
+      const media = json.data?.Page?.media ?? [];
+      for (const m of media as Array<{
+        id: number;
+        title: { romaji?: string; english?: string };
+        popularity: number;
+        averageScore: number | null;
+        genres: string[];
+        siteUrl: string;
+        coverImage?: { medium?: string };
+        description?: string;
+      }>) {
+        if (seen.has(m.id)) continue;
+        seen.add(m.id);
+        out.push({
+          id: m.id,
+          title: m.title.english || m.title.romaji || `#${m.id}`,
+          popularity: m.popularity ?? 0,
+          averageScore: m.averageScore ?? 0,
+          genres: m.genres ?? [],
+          cover: m.coverImage?.medium,
+          siteUrl: m.siteUrl,
+          description: stripHtml(m.description ?? ""),
+        });
+      }
+      await new Promise((r) => setTimeout(r, 2100));
+      if (!json.data?.Page?.pageInfo?.hasNextPage) break;
+      page++;
+    }
+  }
+  return out;
+}

@@ -214,6 +214,21 @@ export async function getAllEntities(): Promise<EntityView[]> {
   return fetchAllFromDb();
 }
 
+/** Conteggi per la home (totale + per tipo). */
+export async function getCounts(): Promise<{ total: number; byKind: Record<string, number> }> {
+  const rows = await db!
+    .select({ kind: entities.kind, n: sql<number>`count(*)::int` })
+    .from(entities)
+    .groupBy(entities.kind);
+  const byKind: Record<string, number> = {};
+  let total = 0;
+  for (const r of rows) {
+    byKind[r.kind] = r.n;
+    total += r.n;
+  }
+  return { total, byKind };
+}
+
 /** Slug minimali per la sitemap (solo entità indicizzabili). Leggero anche a 100k. */
 export async function getSitemapSlugs(): Promise<{ kind: Kind; slug: string }[]> {
   const rows = await db!

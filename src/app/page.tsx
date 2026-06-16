@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getLeaderboard, getTicker, getEntitiesByKind } from "@/lib/data";
+import { getLeaderboard, getTicker, getEntitiesByKind, getCounts } from "@/lib/data";
 import { Ticker } from "@/components/Ticker";
 import { Leaderboard } from "@/components/Leaderboard";
 import { EntityCard } from "@/components/EntityCard";
@@ -34,6 +34,7 @@ export default async function Home() {
       getLeaderboard({ kind: "tv", sort: "top", limit: 6 }),
       getTicker(14),
     ]);
+  const counts = await getCounts();
 
   const topMover = rising[0];
 
@@ -58,6 +59,15 @@ export default async function Home() {
               pubblici, aggiornati in automatico. Niente gossip: solo numeri e
               fonti.
             </p>
+            {counts.total > 0 ? (
+              <p className="mt-3 text-sm text-muted">
+                Stiamo tracciando{" "}
+                <span className="tabnum font-semibold text-peak">
+                  {counts.total.toLocaleString("it-IT")}
+                </span>{" "}
+                tra creator, anime, manga, video e altro — e cresce ogni giorno.
+              </p>
+            ) : null}
             <div className="mt-5 flex flex-wrap gap-2">
               {PILLARS.map((p) => (
                 <Link

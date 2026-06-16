@@ -177,6 +177,98 @@ export async function upsertWatchable(
     });
 }
 
+/**
+ * Inserimento in BLOCCO di watchables (anime/manga/film/serie) — molto più veloce
+ * dell'upsert riga-per-riga: multi-row insert a chunk. delta=0 (l'aggiornamento
+ * giornaliero ricalcola le variazioni). Pensato per import di decine di migliaia.
+ */
+export async function bulkUpsertWatchables(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
+  items: Watchable[],
+  chunkSize = 500
+): Promise<number> {
+  const { entities, stats, history } = schema;
+  const today = new Date().toISOString().slice(0, 10);
+  let done = 0;
+
+  // dedup per (kind,slug) nel batch
+  const seen = new Set<string>();
+  const uniq = items.filter((w) => {
+    const k = `${w.kind}:${w.slug}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  for (let i = 0; i < uniq.length; i += chunkSize) {
+    const chunk = uniq.slice(i, i + chunkSize);
+    const rows = await db
+      .insert(entities)
+      .values(
+        chunk.map((w) => ({
+          kind: w.kind,
+          slug: w.slug,
+          name: w.name,
+          platform: w.platform,
+          country: w.country,
+          category: w.category,
+          avatarUrl: w.avatarUrl ?? null,
+          description: w.description,
+          sourceUrl: w.sourceUrl,
+          updatedAt: new Date(),
+        }))
+      )
+      .onConflictDoUpdate({
+        target: [entities.kind, entities.slug],
+        set: {
+          name: sql`excluded.name`,
+          avatarUrl: sql`excluded.avatar_url`,
+          description: sql`excluded.description`,
+          updatedAt: new Date(),
+        },
+      })
+      .returning({ id: entities.id, kind: entities.kind, slug: entities.slug });
+
+    const idByKey = new Map<string, number>();
+    for (const r of rows) idByKey.set(`${r.kind}:${r.slug}`, r.id);
+
+    const histVals = chunk
+      .map((w) => {
+        const id = idByKey.get(`${w.kind}:${w.slug}`);
+        return id ? { entityId: id, day: today, primaryMetric: w.primary, secondaryMetric: w.secondary } : null;
+      })
+      .filter(Boolean);
+    if (histVals.length) await db.insert(history).values(histVals).onConflictDoNothing();
+
+    const statVals = chunk
+      .map((w) => {
+        const id = idByKey.get(`${w.kind}:${w.slug}`);
+        return id
+          ? { entityId: id, primaryMetric: w.primary, secondaryMetric: w.secondary, delta24h: 0, delta7d: 0, capturedAt: new Date() }
+          : null;
+      })
+      .filter(Boolean);
+    if (statVals.length) {
+      await db
+        .insert(stats)
+        .values(statVals)
+        .onConflictDoUpdate({
+          target: stats.entityId,
+          set: {
+            primaryMetric: sql`excluded.primary_metric`,
+            secondaryMetric: sql`excluded.secondary_metric`,
+            capturedAt: new Date(),
+          },
+        });
+    }
+    done += chunk.length;
+  }
+  return done;
+}
+
 /** Upsert di un video di tendenza (kind="video"): primary=views, secondary=likes. */
 export async function upsertVideo(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

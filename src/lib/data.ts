@@ -117,6 +117,14 @@ export async function getAllEntities(): Promise<EntityView[]> {
   return hasDb ? DB.getAllEntities() : allViews();
 }
 
+export async function getCounts(): Promise<{ total: number; byKind: Record<string, number> }> {
+  if (hasDb) return DB.getCounts();
+  const views = allViews();
+  const byKind: Record<string, number> = {};
+  for (const e of views) byKind[e.kind] = (byKind[e.kind] ?? 0) + 1;
+  return { total: views.length, byKind };
+}
+
 /** Slug minimali indicizzabili per la sitemap (scala-ready). */
 export async function getSitemapSlugs(): Promise<{ kind: Kind; slug: string }[]> {
   if (hasDb) return DB.getSitemapSlugs();
