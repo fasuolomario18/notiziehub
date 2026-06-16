@@ -5,6 +5,7 @@ import { SITE, absoluteUrl } from "@/lib/site";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { Analytics } from "@/components/Analytics";
+import { CookieBanner } from "@/components/CookieBanner";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -70,6 +71,7 @@ export default function RootLayout({
           {children}
         </main>
         <SiteFooter />
+        <CookieBanner />
         <Analytics />
       </body>
     </html>

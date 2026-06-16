@@ -1,13 +1,18 @@
+"use client";
+
 import Script from "next/script";
+import { useConsent } from "./useConsent";
 
 /**
- * Analytics gated da env (nessun caricamento se le var non sono impostate):
+ * Analytics caricato SOLO dopo consenso cookie ("Accetta").
  * - NEXT_PUBLIC_GA_ID            → Google Analytics 4
- * - NEXT_PUBLIC_PLAUSIBLE_DOMAIN → Plausible (privacy-friendly, opzionale)
+ * - NEXT_PUBLIC_PLAUSIBLE_DOMAIN → Plausible (opzionale, privacy-friendly)
  */
 export function Analytics() {
+  const consent = useConsent();
   const ga = process.env.NEXT_PUBLIC_GA_ID;
   const plausible = process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN;
+  if (consent !== "all") return null;
 
   return (
     <>
@@ -27,7 +32,6 @@ export function Analytics() {
           </Script>
         </>
       ) : null}
-
       {plausible ? (
         <Script
           defer
