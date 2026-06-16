@@ -2,27 +2,28 @@
  * Job di raccolta (cron). Brief sez. 5 — il loop "gira da solo":
  *   API ufficiali → upsert DB → riga storica datata → (ISR rigenera) → sitemap.
  *
- * Esecuzione:  npm run collect
- * Richiede: DATABASE_URL, YOUTUBE_API_KEY
+ * Aggiorna TUTTI i canali già nel DB (storico giornaliero + crescita per ognuno)
+ * e si assicura che i canali curati esistano.
  *
- * Schedulabile con GitHub Actions cron (gratis) o Vercel Cron.
+ * Esecuzione:  npm run collect      Richiede: DATABASE_URL, YOUTUBE_API_KEY
  */
 import { config } from "dotenv";
-config({ path: ".env.local" }); // carica .env.local in locale (in CI le env vengono dai secrets)
+config({ path: ".env.local" }); // in locale; in CI le env vengono dai secrets
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { sql } from "drizzle-orm";
-import {
-  fetchChannels,
-  fetchByHandle,
-  slugify,
-  type ChannelStat,
-} from "../src/lib/sources/youtube";
+import { eq } from "drizzle-orm";
+import { fetchChannels, fetchByHandle } from "../src/lib/sources/youtube";
+
+function channelIdFromUrl(url: string | null): string | null {
+  const m = url?.match(/channel\/(UC[0-9A-Za-z_-]{20,})/);
+  return m ? m[1] : null;
+}
 
 async function main() {
   // import dinamici DOPO il caricamento env (db.ts legge process.env al load)
   const { db, hasDb } = await import("../src/lib/db");
-  const { entities, stats, history } = await import("../src/lib/schema");
+  const schema = await import("../src/lib/schema");
+  const { upsertCreator } = await import("../src/lib/sources/persist");
 
   if (!hasDb || !db) {
     console.error("DATABASE_URL mancante: il job richiede un Postgres.");
@@ -33,123 +34,44 @@ async function main() {
     process.exit(1);
   }
 
+  // 1) Assicura i canali curati (per handle) — utile al primo avvio.
   const cfg = JSON.parse(
     readFileSync(join(process.cwd(), "data", "youtube-channels.json"), "utf8")
-  ) as { channels: { channelId?: string; handle?: string; category?: string }[] };
-
-  const byId = cfg.channels.filter((c) => c.channelId);
-  const byHandle = cfg.channels.filter((c) => c.handle && !c.channelId);
-  console.log(
-    `Raccolta YouTube: ${byId.length} per ID + ${byHandle.length} per handle…`
-  );
-
-  // categoria associata al risultato (per channelId e, dopo la risoluzione, per handle)
-  const catByChannelId = new Map<string, string | undefined>();
-  const results: ChannelStat[] = [];
-
-  // 1) batch per ID
-  if (byId.length) {
-    for (const c of byId) catByChannelId.set(c.channelId!, c.category);
-    results.push(...(await fetchChannels(byId.map((c) => c.channelId!))));
-  }
-
-  // 2) risoluzione handle (1 unità ciascuno)
-  let resolved = 0;
-  for (const c of byHandle) {
+  ) as { channels: { handle?: string; category?: string }[] };
+  for (const c of cfg.channels.filter((c) => c.handle)) {
     try {
       const stat = await fetchByHandle(c.handle!);
-      if (stat) {
-        catByChannelId.set(stat.channelId, c.category);
-        results.push(stat);
-        resolved++;
-      } else {
-        console.warn(`handle non trovato: ${c.handle}`);
-      }
-    } catch (err) {
-      console.warn(`errore su ${c.handle}:`, (err as Error).message);
+      if (stat) await upsertCreator(db, schema, stat, c.category);
+    } catch {
+      /* tollerato */
     }
   }
-  console.log(`Handle risolti: ${resolved}/${byHandle.length}`);
-  const catById = catByChannelId;
-  const today = new Date().toISOString().slice(0, 10);
+
+  // 2) Rinfresca TUTTI i creator YouTube già nel DB (storico+crescita per ognuno).
+  const rows = await db
+    .select({
+      sourceUrl: schema.entities.sourceUrl,
+      category: schema.entities.category,
+    })
+    .from(schema.entities)
+    .where(eq(schema.entities.platform, "youtube"));
+
+  const idToCat = new Map<string, string | undefined>();
+  for (const r of rows) {
+    const id = channelIdFromUrl(r.sourceUrl);
+    if (id) idToCat.set(id, r.category ?? undefined);
+  }
+  const ids = [...idToCat.keys()];
+  console.log(`Aggiorno ${ids.length} canali esistenti…`);
+
+  const stats = await fetchChannels(ids); // 1 unità ogni 50 → economico
   let updated = 0;
-
-  for (const r of results) {
-    const slug = slugify(r.title);
-    // upsert entità
-    const [row] = await db
-      .insert(entities)
-      .values({
-        kind: "creator",
-        slug,
-        name: r.title,
-        platform: "youtube",
-        country: r.country ?? null,
-        category: catById.get(r.channelId) ?? null,
-        avatarUrl: r.thumbnail ?? null,
-        description: r.description,
-        sourceUrl: `https://www.youtube.com/channel/${r.channelId}`,
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [entities.kind, entities.slug],
-        set: { name: r.title, avatarUrl: r.thumbnail ?? null, updatedAt: new Date() },
-      })
-      .returning({ id: entities.id });
-
-    const entityId = row.id;
-
-    // riga storica datata (una per giorno)
-    await db
-      .insert(history)
-      .values({
-        entityId,
-        day: today,
-        primaryMetric: r.subscribers,
-        secondaryMetric: r.views,
-      })
-      .onConflictDoNothing();
-
-    // delta da storico
-    const prev = await db.execute(sql`
-      SELECT primary_metric FROM history
-      WHERE entity_id = ${entityId} AND day < ${today}
-      ORDER BY day DESC LIMIT 1
-    `);
-    const prev7 = await db.execute(sql`
-      SELECT primary_metric FROM history
-      WHERE entity_id = ${entityId} AND day <= (CURRENT_DATE - INTERVAL '7 day')
-      ORDER BY day DESC LIMIT 1
-    `);
-    const prevVal = Number((prev as unknown as { primary_metric: number }[])[0]?.primary_metric ?? r.subscribers);
-    const prev7Val = Number((prev7 as unknown as { primary_metric: number }[])[0]?.primary_metric ?? r.subscribers);
-
-    // upsert stato corrente
-    await db
-      .insert(stats)
-      .values({
-        entityId,
-        primaryMetric: r.subscribers,
-        secondaryMetric: r.views,
-        delta24h: r.subscribers - prevVal,
-        delta7d: r.subscribers - prev7Val,
-        capturedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: stats.entityId,
-        set: {
-          primaryMetric: r.subscribers,
-          secondaryMetric: r.views,
-          delta24h: r.subscribers - prevVal,
-          delta7d: r.subscribers - prev7Val,
-          capturedAt: new Date(),
-        },
-      });
-
+  for (const s of stats) {
+    await upsertCreator(db, schema, s, idToCat.get(s.channelId));
     updated++;
   }
 
-  console.log(`Fatto: ${updated} entità aggiornate (${today}).`);
+  console.log(`Fatto: ${updated} canali aggiornati (storico + crescita).`);
   process.exit(0);
 }
 

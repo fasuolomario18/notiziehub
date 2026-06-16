@@ -17,19 +17,22 @@ const MIN_SUBS = 20_000; // soglia qualità: niente micro-canali (evita pagine s
 
 // Query per categoria: ognuna porta fino a ~50 canali. Aggiungerne = più copertura.
 const QUERIES: Record<string, string[]> = {
-  gaming: ["gaming italiano", "videogiochi ita", "minecraft ita", "fortnite ita", "gameplay italiano", "streamer italiano"],
-  musica: ["rap italiano", "trap italiana", "musica italiana", "cantante italiano", "indie italiano", "pop italiano"],
-  comedy: ["comedy italiano", "sketch comici", "comici italiani", "parodie italiane"],
-  scienza: ["divulgazione scientifica", "scienza italiano", "storia italiano", "documentari italiano"],
-  intrattenimento: ["intrattenimento italiano", "vlog italiano", "reaction italiano", "challenge italiano"],
-  tech: ["tecnologia italiano", "recensioni tech ita", "smartphone italiano", "informatica italiano"],
-  attualita: ["attualità italiano", "news italiano", "approfondimento italiano"],
-  sport: ["calcio italiano youtube", "sport italiano", "fitness italiano", "palestra italiano"],
-  cucina: ["ricette italiane", "cucina italiano", "food italiano"],
-  beauty: ["beauty italiano", "makeup italiano", "moda italiano"],
-  viaggi: ["viaggi italiano", "travel italiano"],
-  finanza: ["finanza personale italiano", "investimenti italiano", "economia italiano"],
-  auto: ["auto italiano youtube", "motori italiano"],
+  gaming: ["gaming italiano", "videogiochi ita", "minecraft ita", "fortnite ita", "gameplay italiano", "streamer italiano", "gta ita", "roblox ita", "call of duty ita", "league of legends ita", "fifa ita", "speedrun ita"],
+  musica: ["rap italiano", "trap italiana", "musica italiana", "cantante italiano", "indie italiano", "pop italiano", "rock italiano", "produttore musicale ita", "cover italiano", "freestyle italiano"],
+  comedy: ["comedy italiano", "sketch comici", "comici italiani", "parodie italiane", "stand up comedy italiano", "meme italiano"],
+  scienza: ["divulgazione scientifica", "scienza italiano", "storia italiano", "documentari italiano", "matematica italiano", "fisica italiano", "filosofia italiano", "astronomia italiano"],
+  intrattenimento: ["intrattenimento italiano", "vlog italiano", "reaction italiano", "challenge italiano", "podcast italiano", "interviste italiano", "esperimenti italiano"],
+  tech: ["tecnologia italiano", "recensioni tech ita", "smartphone italiano", "informatica italiano", "programmazione italiano", "intelligenza artificiale italiano", "pc gaming italiano"],
+  attualita: ["attualità italiano", "news italiano", "approfondimento italiano", "geopolitica italiano", "politica italiano"],
+  sport: ["calcio italiano youtube", "sport italiano", "fitness italiano", "palestra italiano", "calciomercato", "running italiano", "arti marziali italiano"],
+  cucina: ["ricette italiane", "cucina italiano", "food italiano", "street food italiano", "pasticceria italiano"],
+  beauty: ["beauty italiano", "makeup italiano", "moda italiano", "skincare italiano", "hair italiano"],
+  viaggi: ["viaggi italiano", "travel italiano", "avventura italiano", "natura italiano"],
+  finanza: ["finanza personale italiano", "investimenti italiano", "economia italiano", "crypto italiano", "business italiano"],
+  auto: ["auto italiano youtube", "motori italiano", "moto italiano", "supercar italiano"],
+  cultura: ["arte italiano", "libri italiano", "cinema italiano", "anime italiano", "fumetti italiano"],
+  kids: ["cartoni animati italiano", "giocattoli italiano", "famiglia italiano"],
+  lifestyle: ["lifestyle italiano", "casa italiano", "animali italiano", "psicologia italiano", "motivazione italiano"],
 };
 
 async function main() {

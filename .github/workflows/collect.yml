@@ -16,13 +16,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Scoperta nuovi canali (cresce il catalogo)
-        run: npm run discover
+      - name: Aggiorna canali esistenti + storico (priorità, poca quota)
+        run: npm run collect
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-      - name: Aggiorna i canali curati + storico
-        run: npm run collect
+      - name: Scoperta nuovi canali (usa la quota residua, errori tollerati)
+        run: npm run discover || true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
