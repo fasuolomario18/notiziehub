@@ -20,14 +20,17 @@ jobs:
         run: npm run collect
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - name: Scoperta nuovi canali (usa la quota residua, errori tollerati)
         run: npm run discover || true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
       - name: Anime + Film + Serie TV (AniList gratis, TMDB se chiave)
         run: npm run media || true
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
