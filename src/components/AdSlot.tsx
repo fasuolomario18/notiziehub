@@ -1,69 +1,66 @@
 "use client";
 
-import Script from "next/script";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useConsent } from "./useConsent";
 
 /**
- * Slot pubblicitario, caricato SOLO dopo consenso cookie. Equilibrato (banner,
- * non aggressivo). Gated da env:
- *  - NEXT_PUBLIC_ADSTERRA_KEY → banner Adsterra
- *  - NEXT_PUBLIC_HILLTOP_SRC  → script banner HilltopAds
- *  - NEXT_PUBLIC_ADSENSE_CLIENT → opzionale
+ * Slot pubblicitario equilibrato (Native Banner container-based), caricato SOLO
+ * dopo consenso. Niente formati aggressivi. UNA sola pubblicità per pagina:
+ * il Native Banner usa un id container unico, quindi solo il primo AdSlot della
+ * pagina la mostra (= esperienza pulita, non invasiva).
+ * Env: NEXT_PUBLIC_ADSTERRA_SRC + NEXT_PUBLIC_ADSTERRA_KEY (fallback Hilltop).
  */
-export function AdSlot({
-  slot = "default",
-  className = "",
-}: {
-  slot?: string;
-  className?: string;
-}) {
-  const consent = useConsent();
-  const adsterra = process.env.NEXT_PUBLIC_ADSTERRA_KEY;
-  const hilltop = process.env.NEXT_PUBLIC_HILLTOP_SRC;
-  const adsense = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
-  const hasAny = adsterra || hilltop || adsense;
+const claimedByPath = new Map<string, number>();
 
-  // Senza consenso o senza network configurato: niente (nessun placeholder in prod).
-  if (consent !== "all" || !hasAny) return null;
+export function AdSlot({ slot = "default", className = "" }: { slot?: string; className?: string }) {
+  const consent = useConsent();
+  const pathname = usePathname();
+  const ref = useRef<HTMLDivElement>(null);
+  const injected = useRef(false);
+  const [isFirst, setIsFirst] = useState(false);
+
+  const adsterraSrc = process.env.NEXT_PUBLIC_ADSTERRA_SRC;
+  const adsterraKey = process.env.NEXT_PUBLIC_ADSTERRA_KEY;
+  const hilltopSrc = process.env.NEXT_PUBLIC_HILLTOP_SRC;
+  const hilltopKey = process.env.NEXT_PUBLIC_HILLTOP_KEY;
+  const src = adsterraSrc || hilltopSrc;
+  const key = adsterraSrc ? adsterraKey : hilltopKey;
+
+  // Reclama lo "slot pubblicitario unico" per questo pathname al mount.
+  useEffect(() => {
+    const n = claimedByPath.get(pathname) ?? 0;
+    if (n === 0) {
+      claimedByPath.set(pathname, 1);
+      setIsFirst(true);
+      return () => {
+        claimedByPath.set(pathname, (claimedByPath.get(pathname) ?? 1) - 1);
+      };
+    }
+    return undefined;
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isFirst || consent !== "all" || !src || !key || injected.current || !ref.current) return;
+    injected.current = true;
+    const container = document.createElement("div");
+    container.id = `container-${key}`;
+    ref.current.appendChild(container);
+    const s = document.createElement("script");
+    s.async = true;
+    s.setAttribute("data-cfasync", "false");
+    s.src = src;
+    ref.current.appendChild(s);
+  }, [isFirst, consent, src, key]);
+
+  if (!isFirst || consent !== "all" || !src || !key) return null;
 
   return (
     <aside
-      className={`mx-auto my-6 flex min-h-[90px] w-full max-w-[728px] items-center justify-center overflow-hidden rounded-lg border border-line bg-surface/40 ${className}`}
+      ref={ref}
+      className={`mx-auto my-6 w-full max-w-3xl overflow-hidden rounded-lg ${className}`}
       aria-label="Pubblicità"
       data-ad-slot={slot}
-    >
-      {adsterra ? (
-        <>
-          <Script id={`adsterra-opt-${slot}`} strategy="afterInteractive">
-            {`atOptions = { 'key':'${adsterra}','format':'iframe','height':90,'width':728,'params':{} };`}
-          </Script>
-          <Script
-            src={`https://www.highperformanceformat.com/${adsterra}/invoke.js`}
-            strategy="afterInteractive"
-          />
-        </>
-      ) : null}
-      {hilltop ? <Script src={hilltop} strategy="afterInteractive" /> : null}
-      {adsense ? (
-        <>
-          <Script
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsense}`}
-            crossOrigin="anonymous"
-            strategy="afterInteractive"
-          />
-          <ins
-            className="adsbygoogle"
-            style={{ display: "block", width: "100%" }}
-            data-ad-client={adsense}
-            data-ad-slot={slot}
-            data-ad-format="auto"
-            data-full-width-responsive="true"
-          />
-          <Script id={`adsense-push-${slot}`} strategy="afterInteractive">
-            {`(adsbygoogle = window.adsbygoogle || []).push({});`}
-          </Script>
-        </>
-      ) : null}
-    </aside>
+    />
   );
 }
