@@ -11,6 +11,19 @@ import type { EntityView, HistoryPoint, Kind, Platform } from "./types";
 const MIN_PRIMARY_FOR_INDEX = 1_000;
 const LIST_LIMIT = 100;
 
+/**
+ * Indicizzabilità per tipo (regola d'oro sez. 2, ma onesta):
+ * - creator/video: servono numeri grossi (follower/views ≥ 1000).
+ * - anime/manga/film/serie: bastano dati reali (un punteggio o un minimo di
+ *   popolarità) — sono pagine ricche di metadati, non thin.
+ */
+function isIndexable(kind: string, primary: number, secondary: number): boolean {
+  if (kind === "anime" || kind === "manga" || kind === "movie" || kind === "tv") {
+    return secondary > 0 || primary >= 50;
+  }
+  return primary >= MIN_PRIMARY_FOR_INDEX;
+}
+
 type Row = {
   kind: string;
   slug: string;
@@ -47,7 +60,7 @@ function rowToView(r: Row, hist: HistoryPoint[] = []): EntityView {
     delta7d,
     delta7dPct: prev7 > 0 ? delta7d / prev7 : 0,
     history: hist,
-    indexable: primary >= MIN_PRIMARY_FOR_INDEX,
+    indexable: isIndexable(r.kind, primary, Number(r.secondary ?? 0)),
   };
 }
 
@@ -235,9 +248,14 @@ export async function getSitemapSlugs(): Promise<{ kind: Kind; slug: string }[]>
     .select({ kind: entities.kind, slug: entities.slug })
     .from(entities)
     .innerJoin(stats, eq(stats.entityId, entities.id))
-    .where(gte(stats.primaryMetric, MIN_PRIMARY_FOR_INDEX))
+    .where(
+      sql`(
+        (${entities.kind} IN ('anime','manga','movie','tv') AND (${stats.secondaryMetric} > 0 OR ${stats.primaryMetric} >= 50))
+        OR (${entities.kind} NOT IN ('anime','manga','movie','tv') AND ${stats.primaryMetric} >= ${MIN_PRIMARY_FOR_INDEX})
+      )`
+    )
     .orderBy(desc(stats.primaryMetric))
-    .limit(200_000);
+    .limit(300_000);
   return rows.map((r) => ({ kind: r.kind as Kind, slug: r.slug }));
 }
 

@@ -19,28 +19,34 @@ async function main() {
     process.exit(1);
   }
 
-  for (const [type, kind, fromY, max] of [
-    ["ANIME", "anime", 1960, 25000],
-    ["MANGA", "manga", 1980, 25000],
+  // Incrementale per anno: salva man mano (resiliente alle interruzioni).
+  for (const [type, kind, fromY] of [
+    ["ANIME", "anime", 1960],
+    ["MANGA", "manga", 1980],
   ] as const) {
-    console.log(`\n=== ${kind}: scarico catalogo (anno per anno)…`);
-    const items = await fetchMediaByYears(type, fromY, 2026, max);
-    console.log(`${kind}: ${items.length} titoli scaricati, salvo in blocco…`);
-    const watchables: Watchable[] = items.map((a) => ({
-      kind,
-      slug: slugify(a.title),
-      name: a.title,
-      platform: "anilist",
-      country: "JP",
-      category: a.genres[0] ? slugify(a.genres[0]) : null,
-      avatarUrl: a.cover,
-      description: a.description,
-      sourceUrl: a.siteUrl,
-      primary: a.popularity,
-      secondary: a.averageScore,
-    }));
-    const n = await bulkUpsertWatchables(db, schema, watchables);
-    console.log(`${kind}: ${n} salvati.`);
+    console.log(`\n=== ${kind}: backfill ${fromY}→2026 (anno per anno)…`);
+    let total = 0;
+    for (let year = 2026; year >= fromY; year--) {
+      const items = await fetchMediaByYears(type, year, year, 100000);
+      if (!items.length) continue;
+      const watchables: Watchable[] = items.map((a) => ({
+        kind,
+        slug: slugify(a.title),
+        name: a.title,
+        platform: "anilist",
+        country: "JP",
+        category: a.genres[0] ? slugify(a.genres[0]) : null,
+        avatarUrl: a.cover,
+        description: a.description,
+        sourceUrl: a.siteUrl,
+        primary: a.popularity,
+        secondary: a.averageScore,
+      }));
+      const n = await bulkUpsertWatchables(db, schema, watchables);
+      total += n;
+      console.log(`${kind} ${year}: +${n} (totale ${total})`);
+    }
+    console.log(`${kind}: completato, ${total} salvati.`);
   }
   process.exit(0);
 }
