@@ -33,6 +33,35 @@ export const ADS: Record<AdName, string> = {
   banner160x300: banner("50a5fa69209f160ec268f7a119ac1d33", 160, 300),
 };
 
+/**
+ * HilltopAds MultiTag per notizihub.com (site id 902060) — le stesse 4 zone di
+ * globary/prezzioggi. Ogni script è auto-piazzante (MultiTag): va caricato una
+ * volta nel documento principale, gestisce da solo rendering e posizione.
+ * Caricati solo dopo consenso cookie (vedi components/HilltopAds.tsx).
+ */
+export const HILLTOP_ZONES: { name: string; src: string }[] = [
+  // Video Slider (MultiTag VAST) — zona #7143449
+  {
+    name: "videoSlider",
+    src: "//untimely-hello.com/bSX.VVsSdzGIlR0/YVW/cK/YeAm/9euvZBUMllkUP/T/c_xsNTDRM/0FNrDvk/tSNvzIEB0/MEzjQv1nM/wh",
+  },
+  // Banner 300x100 (Banner MultiTag) — zona #7143465
+  {
+    name: "banner300x100",
+    src: "//untimely-hello.com/byXaVrsJd.Gjl/0IYdWpcx/Be/ml9YuiZvUZlCkHPWT/cQxCNvDCM_0nN/jGU/tQN/zNEP0/MKz/Qn2jOCQR",
+  },
+  // Banner 300x250 (Banner MultiTag) — zona #7143477
+  {
+    name: "banner300x250hilltop",
+    src: "//untimely-hello.com/b_XPVNs.dzGIla0JY/WFcP/-eyma9quVZ/UqlbkYPGTLclxxNPDCMk0/NrzAcwtgNCzkEa0aMRzlQn4PMsQL",
+  },
+  // In-Page Push (MultiTag nella pagina) — zona #7143493
+  {
+    name: "inPagePush",
+    src: "//untimely-hello.com/bRX.Vqs/d_GilB0JYrW/cy/eepm/9-uLZzUbl/kQPOTFcdxnN/DGMC0MOTT/MwtANtzgEH0mMuzsQ/5KNBwV",
+  },
+];
+
 /** Dimensioni dei banner (per l'iframe). */
 export const BANNER_SIZE: Partial<Record<AdName, { w: number; h: number }>> = {
   banner728x90: { w: 728, h: 90 },

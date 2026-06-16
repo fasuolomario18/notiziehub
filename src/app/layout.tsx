@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { Analytics } from "@/components/Analytics";
 import { CookieBanner } from "@/components/CookieBanner";
 import { SocialBar } from "@/components/SocialBar";
+import { HilltopAds } from "@/components/HilltopAds";
 
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -74,6 +75,7 @@ export default function RootLayout({
         <SiteFooter />
         <CookieBanner />
         <SocialBar />
+        <HilltopAds />
         <Analytics />
       </body>
     </html>
