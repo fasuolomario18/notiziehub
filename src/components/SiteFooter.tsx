@@ -23,6 +23,7 @@ export function SiteFooter() {
             <li><Link href="/track" className="hover:text-paper">Brani</Link></li>
             <li><Link href="/video" className="hover:text-paper">Video virali</Link></li>
             <li><Link href="/anime" className="hover:text-paper">Anime</Link></li>
+            <li><Link href="/manga" className="hover:text-paper">Manga</Link></li>
             <li><Link href="/film" className="hover:text-paper">Film</Link></li>
             <li><Link href="/serie-tv" className="hover:text-paper">Serie TV</Link></li>
             <li><Link href="/classifiche" className="hover:text-paper">Classifiche</Link></li>

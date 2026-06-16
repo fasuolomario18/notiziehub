@@ -16,9 +16,9 @@ export type AnimeItem = {
 const ENDPOINT = "https://graphql.anilist.co";
 
 const QUERY = `
-query ($page: Int, $perPage: Int) {
+query ($page: Int, $perPage: Int, $type: MediaType) {
   Page(page: $page, perPage: $perPage) {
-    media(type: ANIME, sort: POPULARITY_DESC) {
+    media(type: $type, sort: POPULARITY_DESC) {
       id
       title { romaji english }
       popularity
@@ -39,14 +39,18 @@ function stripHtml(s: string | null): string {
     .slice(0, 300);
 }
 
-/** Top anime per popolarità. perPage max 50; pages per paginare. */
-export async function fetchTopAnime(pages = 2, perPage = 50): Promise<AnimeItem[]> {
+/** Top media (ANIME|MANGA) per popolarità. perPage max 50; pages per paginare. */
+export async function fetchTopMedia(
+  type: "ANIME" | "MANGA",
+  pages = 2,
+  perPage = 50
+): Promise<AnimeItem[]> {
   const out: AnimeItem[] = [];
   for (let page = 1; page <= pages; page++) {
     const res = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ query: QUERY, variables: { page, perPage } }),
+      body: JSON.stringify({ query: QUERY, variables: { page, perPage, type } }),
     });
     if (!res.ok) {
       console.warn(`AniList ${res.status}: ${await res.text()}`);
@@ -85,3 +89,8 @@ export async function fetchTopAnime(pages = 2, perPage = 50): Promise<AnimeItem[
   }
   return out;
 }
+
+export const fetchTopAnime = (pages = 2, perPage = 50) =>
+  fetchTopMedia("ANIME", pages, perPage);
+export const fetchTopManga = (pages = 2, perPage = 50) =>
+  fetchTopMedia("MANGA", pages, perPage);

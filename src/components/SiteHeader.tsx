@@ -7,6 +7,7 @@ const NAV = [
   { href: "/film", label: "Film" },
   { href: "/serie-tv", label: "Serie TV" },
   { href: "/anime", label: "Anime" },
+  { href: "/manga", label: "Manga" },
   { href: "/video", label: "Video" },
   { href: "/classifiche", label: "Classifiche" },
 ];

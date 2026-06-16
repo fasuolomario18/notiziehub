@@ -46,6 +46,12 @@ const TITLES: Record<Kind, { h1: string; intro: string; plural: string }> = {
     intro:
       "Gli anime più popolari e meglio votati, con punteggio, fan e classifiche. Dati pubblici da AniList.",
   },
+  manga: {
+    h1: "Manga",
+    plural: "Manga",
+    intro:
+      "I manga più popolari e meglio votati, con punteggio, fan e classifiche. Dati pubblici da AniList.",
+  },
   movie: {
     h1: "Film",
     plural: "Film",

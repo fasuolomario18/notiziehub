@@ -19,6 +19,7 @@ const PLURAL: Record<string, string> = {
   game: "Giochi",
   video: "Video",
   anime: "Anime",
+  manga: "Manga",
   movie: "Film",
   tv: "Serie TV",
 };

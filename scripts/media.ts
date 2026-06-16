@@ -6,7 +6,7 @@
  */
 import { config } from "dotenv";
 config({ path: ".env.local" });
-import { fetchTopAnime } from "../src/lib/sources/anilist";
+import { fetchTopAnime, fetchTopManga } from "../src/lib/sources/anilist";
 import { fetchPopular } from "../src/lib/sources/tmdb";
 import { slugify } from "../src/lib/sources/youtube";
 
@@ -20,27 +20,35 @@ async function main() {
     process.exit(1);
   }
 
-  // ANIME (AniList, nessuna chiave)
-  try {
-    const anime = await fetchTopAnime(40, 50); // ~2000 anime per popolarità
-    for (const a of anime) {
-      await upsertWatchable(db, schema, {
-        kind: "anime",
-        slug: slugify(a.title),
-        name: a.title,
-        platform: "anilist",
-        country: "JP",
-        category: a.genres[0] ? slugify(a.genres[0]) : null,
-        avatarUrl: a.cover,
-        description: a.description,
-        sourceUrl: a.siteUrl,
-        primary: a.popularity,
-        secondary: a.averageScore,
-      });
+  // ANIME + MANGA (AniList, nessuna chiave) — cataloghi ampi
+  for (const [type, kind, pages] of [
+    ["ANIME", "anime", 120],
+    ["MANGA", "manga", 120],
+  ] as const) {
+    try {
+      const items =
+        type === "ANIME" ? await fetchTopAnime(pages, 50) : await fetchTopManga(pages, 50);
+      let n = 0;
+      for (const a of items) {
+        await upsertWatchable(db, schema, {
+          kind,
+          slug: slugify(a.title),
+          name: a.title,
+          platform: "anilist",
+          country: "JP",
+          category: a.genres[0] ? slugify(a.genres[0]) : null,
+          avatarUrl: a.cover,
+          description: a.description,
+          sourceUrl: a.siteUrl,
+          primary: a.popularity,
+          secondary: a.averageScore,
+        });
+        n++;
+      }
+      console.log(`${kind} aggiornati: ${n}`);
+    } catch (err) {
+      console.warn(`${kind}:`, (err as Error).message);
     }
-    console.log(`Anime aggiornati: ${anime.length}`);
-  } catch (err) {
-    console.warn("anime:", (err as Error).message);
   }
 
   // FILM + SERIE TV (TMDB, se chiave presente)

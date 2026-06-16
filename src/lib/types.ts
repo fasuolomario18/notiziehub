@@ -6,6 +6,7 @@ export type Kind =
   | "trend"
   | "video"
   | "anime"
+  | "manga"
   | "movie"
   | "tv";
 export type Platform =
@@ -50,6 +51,7 @@ export const KIND_LABEL: Record<Kind, string> = {
   trend: "Trend",
   video: "Video",
   anime: "Anime",
+  manga: "Manga",
   movie: "Film",
   tv: "Serie TV",
 };
@@ -67,7 +69,7 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
 /** Unità della metrica primaria per tipo di entità. */
 export function metricLabel(kind: Kind, platform: Platform): string {
   if (kind === "video") return "visualizzazioni";
-  if (kind === "anime") return "fan";
+  if (kind === "anime" || kind === "manga") return "fan";
   if (kind === "movie" || kind === "tv") return "voti";
   if (kind === "track") return "stream";
   if (kind === "trend") return "video";
