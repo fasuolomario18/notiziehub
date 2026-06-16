@@ -7,7 +7,7 @@
  */
 
 export type SeedEntity = {
-  kind: "creator" | "track" | "artist" | "game" | "trend";
+  kind: "creator" | "track" | "artist" | "game" | "trend" | "video";
   slug: string;
   name: string;
   platform: "youtube" | "tiktok" | "twitch" | "instagram" | "spotify";
@@ -147,5 +147,27 @@ export const SEED: SeedEntity[] = [
     description: "Fitness e palestra su TikTok.",
     sourceUrl: "https://www.tiktok.com/tag/gymtok",
     primary: 12_300_000, secondary: 0, dailyGrowth: 45_000, volatility: 0.6,
+  },
+  // ---- VIDEO VIRALI (seed dimostrativo) ----
+  {
+    kind: "video", slug: "seed-video-1", name: "Il video più visto della settimana", platform: "youtube",
+    country: "IT", category: "virali",
+    description: "Video di un creator italiano.",
+    sourceUrl: "https://www.youtube.com/",
+    primary: 8_400_000, secondary: 420_000, dailyGrowth: 350_000, volatility: 0.5,
+  },
+  {
+    kind: "video", slug: "seed-video-2", name: "Reaction virale del momento", platform: "youtube",
+    country: "IT", category: "virali",
+    description: "Video di un creator italiano.",
+    sourceUrl: "https://www.youtube.com/",
+    primary: 5_100_000, secondary: 310_000, dailyGrowth: 280_000, volatility: 0.6,
+  },
+  {
+    kind: "video", slug: "seed-video-3", name: "Nuovo videoclip musicale", platform: "youtube",
+    country: "IT", category: "virali",
+    description: "Video musicale.",
+    sourceUrl: "https://www.youtube.com/",
+    primary: 3_700_000, secondary: 240_000, dailyGrowth: 190_000, volatility: 0.4,
   },
 ];

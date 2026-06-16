@@ -12,7 +12,11 @@ config({ path: ".env.local" }); // in locale; in CI le env vengono dai secrets
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { eq } from "drizzle-orm";
-import { fetchChannels, fetchByHandle } from "../src/lib/sources/youtube";
+import {
+  fetchChannels,
+  fetchByHandle,
+  fetchTrendingVideos,
+} from "../src/lib/sources/youtube";
 
 function channelIdFromUrl(url: string | null): string | null {
   const m = url?.match(/channel\/(UC[0-9A-Za-z_-]{20,})/);
@@ -23,7 +27,7 @@ async function main() {
   // import dinamici DOPO il caricamento env (db.ts legge process.env al load)
   const { db, hasDb } = await import("../src/lib/db");
   const schema = await import("../src/lib/schema");
-  const { upsertCreator } = await import("../src/lib/sources/persist");
+  const { upsertCreator, upsertVideo } = await import("../src/lib/sources/persist");
 
   if (!hasDb || !db) {
     console.error("DATABASE_URL mancante: il job richiede un Postgres.");
@@ -72,6 +76,16 @@ async function main() {
   }
 
   console.log(`Fatto: ${updated} canali aggiornati (storico + crescita).`);
+
+  // 3) Video di tendenza in Italia (sezione "Video virali", ~1 unità).
+  try {
+    const videos = await fetchTrendingVideos("IT", 50);
+    for (const v of videos) await upsertVideo(db, schema, v);
+    console.log(`Video di tendenza aggiornati: ${videos.length}.`);
+  } catch (err) {
+    console.warn("trending video:", (err as Error).message);
+  }
+
   process.exit(0);
 }
 

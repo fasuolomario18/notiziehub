@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { ChannelStat } from "./youtube";
+import type { ChannelStat, TrendingVideo } from "./youtube";
 import { slugify } from "./youtube";
 
 /**
@@ -80,6 +80,72 @@ export async function upsertCreator(
         secondaryMetric: r.views,
         delta24h: r.subscribers - prevVal,
         delta7d: r.subscribers - prev7Val,
+        capturedAt: new Date(),
+      },
+    });
+}
+
+/** Upsert di un video di tendenza (kind="video"): primary=views, secondary=likes. */
+export async function upsertVideo(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
+  v: TrendingVideo
+): Promise<void> {
+  const { entities, stats, history } = schema;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [row] = await db
+    .insert(entities)
+    .values({
+      kind: "video",
+      slug: v.videoId,
+      name: v.title,
+      platform: "youtube",
+      country: "IT",
+      category: "virali",
+      avatarUrl: v.thumbnail ?? null,
+      description: `Video di ${v.channelTitle}`,
+      sourceUrl: `https://www.youtube.com/watch?v=${v.videoId}`,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [entities.kind, entities.slug],
+      set: { name: v.title, avatarUrl: v.thumbnail ?? null, updatedAt: new Date() },
+    })
+    .returning({ id: entities.id });
+
+  const entityId = row.id;
+
+  await db
+    .insert(history)
+    .values({ entityId, day: today, primaryMetric: v.views, secondaryMetric: v.likes })
+    .onConflictDoNothing();
+
+  const prev = await db.execute(sql`
+    SELECT primary_metric FROM history
+    WHERE entity_id = ${entityId} AND day < ${today}
+    ORDER BY day DESC LIMIT 1
+  `);
+  const prevVal = Number(prev?.[0]?.primary_metric ?? v.views);
+
+  await db
+    .insert(stats)
+    .values({
+      entityId,
+      primaryMetric: v.views,
+      secondaryMetric: v.likes,
+      delta24h: v.views - prevVal,
+      delta7d: v.views - prevVal,
+      capturedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: stats.entityId,
+      set: {
+        primaryMetric: v.views,
+        secondaryMetric: v.likes,
+        delta24h: v.views - prevVal,
         capturedAt: new Date(),
       },
     });

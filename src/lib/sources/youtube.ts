@@ -114,6 +114,53 @@ export async function discoverChannelIds(
   return ids;
 }
 
+export type TrendingVideo = {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  thumbnail?: string;
+  views: number;
+  likes: number;
+  comments: number;
+  publishedAt: string;
+};
+
+/** Video di tendenza in una regione (videos.list chart=mostPopular, ~1 unità). */
+export async function fetchTrendingVideos(
+  regionCode = "IT",
+  max = 50
+): Promise<TrendingVideo[]> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) throw new Error("YOUTUBE_API_KEY mancante");
+  const url =
+    `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics` +
+    `&chart=mostPopular&regionCode=${regionCode}&maxResults=${max}&key=${key}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`YouTube videos ${res.status}: ${await res.text()}`);
+  const json = (await res.json()) as {
+    items?: Array<{
+      id: string;
+      snippet: {
+        title: string;
+        channelTitle: string;
+        publishedAt: string;
+        thumbnails?: { medium?: { url: string } };
+      };
+      statistics: { viewCount?: string; likeCount?: string; commentCount?: string };
+    }>;
+  };
+  return (json.items ?? []).map((v) => ({
+    videoId: v.id,
+    title: v.snippet.title,
+    channelTitle: v.snippet.channelTitle,
+    thumbnail: v.snippet.thumbnails?.medium?.url,
+    views: Number(v.statistics.viewCount ?? 0),
+    likes: Number(v.statistics.likeCount ?? 0),
+    comments: Number(v.statistics.commentCount ?? 0),
+    publishedAt: v.snippet.publishedAt,
+  }));
+}
+
 export function slugify(s: string): string {
   return s
     .toLowerCase()

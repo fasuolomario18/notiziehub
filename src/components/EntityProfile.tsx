@@ -17,6 +17,7 @@ const PLURAL: Record<string, string> = {
   track: "Brani",
   trend: "Trend",
   game: "Giochi",
+  video: "Video",
 };
 
 export function EntityProfile({

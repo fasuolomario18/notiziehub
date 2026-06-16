@@ -21,11 +21,12 @@ const PILLARS = [
 ];
 
 export default async function Home() {
-  const [rising, topCreators, artists, trends, ticker] = await Promise.all([
+  const [rising, topCreators, artists, trends, videos, ticker] = await Promise.all([
     getLeaderboard({ sort: "rising", limit: 10 }),
     getLeaderboard({ kind: "creator", sort: "top", limit: 6 }),
     getLeaderboard({ kind: "artist", sort: "top", limit: 6 }),
     getEntitiesByKind("trend"),
+    getLeaderboard({ kind: "video", sort: "top", limit: 8 }),
     getTicker(14),
   ]);
 
@@ -112,6 +113,17 @@ export default async function Home() {
             ))}
           </div>
         </section>
+
+        {videos.length > 0 ? (
+          <section className="mt-10">
+            <SectionTitle href="/video">Video virali in Italia</SectionTitle>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {videos.map((e) => (
+                <EntityCard key={e.slug} e={e} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {trends.length > 0 ? (
           <section className="mt-10">

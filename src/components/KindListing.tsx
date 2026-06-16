@@ -34,6 +34,12 @@ const TITLES: Record<Kind, { h1: string; intro: string; plural: string }> = {
     plural: "Giochi",
     intro: "I giochi più seguiti su Twitch e dintorni.",
   },
+  video: {
+    h1: "Video virali",
+    plural: "Video",
+    intro:
+      "I video più visti del momento in Italia, con visualizzazioni, like e crescita. Aggiornati ogni giorno.",
+  },
 };
 
 export async function KindListing({ kind }: { kind: Kind }) {

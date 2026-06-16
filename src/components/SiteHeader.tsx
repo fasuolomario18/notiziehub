@@ -4,6 +4,7 @@ import { SITE } from "@/lib/site";
 const NAV = [
   { href: "/creator", label: "Creator" },
   { href: "/artist", label: "Musica" },
+  { href: "/video", label: "Video" },
   { href: "/classifiche", label: "Classifiche" },
   { href: "/trend", label: "Trend" },
   { href: "/vs", label: "Versus" },

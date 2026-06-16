@@ -1,4 +1,4 @@
-export type Kind = "creator" | "track" | "artist" | "game" | "trend";
+export type Kind = "creator" | "track" | "artist" | "game" | "trend" | "video";
 export type Platform = "youtube" | "tiktok" | "twitch" | "instagram" | "spotify";
 
 export type HistoryPoint = {
@@ -32,6 +32,7 @@ export const KIND_LABEL: Record<Kind, string> = {
   artist: "Artista",
   game: "Gioco",
   trend: "Trend",
+  video: "Video",
 };
 
 export const PLATFORM_LABEL: Record<Platform, string> = {
@@ -44,6 +45,7 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
 
 /** Unità della metrica primaria per tipo di entità. */
 export function metricLabel(kind: Kind, platform: Platform): string {
+  if (kind === "video") return "visualizzazioni";
   if (kind === "track") return "stream";
   if (kind === "trend") return "video";
   if (platform === "twitch") return "follower";
