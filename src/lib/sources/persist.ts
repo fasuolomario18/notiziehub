@@ -1,0 +1,86 @@
+import { sql } from "drizzle-orm";
+import type { ChannelStat } from "./youtube";
+import { slugify } from "./youtube";
+
+/**
+ * Upsert di un canale YouTube nel DB: entità + riga storica datata + stato corrente con delta.
+ * db e schema vengono passati dal chiamante (che li importa dopo aver caricato le env).
+ */
+export async function upsertCreator(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
+  r: ChannelStat,
+  category?: string
+): Promise<void> {
+  const { entities, stats, history } = schema;
+  const today = new Date().toISOString().slice(0, 10);
+  const slug = slugify(r.title);
+
+  const [row] = await db
+    .insert(entities)
+    .values({
+      kind: "creator",
+      slug,
+      name: r.title,
+      platform: "youtube",
+      country: r.country ?? null,
+      category: category ?? null,
+      avatarUrl: r.thumbnail ?? null,
+      description: r.description,
+      sourceUrl: `https://www.youtube.com/channel/${r.channelId}`,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [entities.kind, entities.slug],
+      set: { name: r.title, avatarUrl: r.thumbnail ?? null, updatedAt: new Date() },
+    })
+    .returning({ id: entities.id });
+
+  const entityId = row.id;
+
+  await db
+    .insert(history)
+    .values({
+      entityId,
+      day: today,
+      primaryMetric: r.subscribers,
+      secondaryMetric: r.views,
+    })
+    .onConflictDoNothing();
+
+  const prev = await db.execute(sql`
+    SELECT primary_metric FROM history
+    WHERE entity_id = ${entityId} AND day < ${today}
+    ORDER BY day DESC LIMIT 1
+  `);
+  const prev7 = await db.execute(sql`
+    SELECT primary_metric FROM history
+    WHERE entity_id = ${entityId} AND day <= (CURRENT_DATE - INTERVAL '7 day')
+    ORDER BY day DESC LIMIT 1
+  `);
+  const prevVal = Number(prev?.[0]?.primary_metric ?? r.subscribers);
+  const prev7Val = Number(prev7?.[0]?.primary_metric ?? r.subscribers);
+
+  await db
+    .insert(stats)
+    .values({
+      entityId,
+      primaryMetric: r.subscribers,
+      secondaryMetric: r.views,
+      delta24h: r.subscribers - prevVal,
+      delta7d: r.subscribers - prev7Val,
+      capturedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: stats.entityId,
+      set: {
+        primaryMetric: r.subscribers,
+        secondaryMetric: r.views,
+        delta24h: r.subscribers - prevVal,
+        delta7d: r.subscribers - prev7Val,
+        capturedAt: new Date(),
+      },
+    });
+}

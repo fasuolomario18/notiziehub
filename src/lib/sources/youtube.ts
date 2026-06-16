@@ -76,6 +76,44 @@ export async function fetchByHandle(handle: string): Promise<ChannelStat | null>
   return item ? mapItem(item) : null;
 }
 
+/**
+ * Scoperta canali via search.list (100 unità/chiamata).
+ * Restituisce gli ID canale trovati per una query, regione IT.
+ * pages>1 pagina i risultati (50 per pagina) — occhio alla quota.
+ */
+export async function discoverChannelIds(
+  query: string,
+  pages = 1
+): Promise<string[]> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) throw new Error("YOUTUBE_API_KEY mancante");
+  const ids: string[] = [];
+  let pageToken = "";
+  for (let p = 0; p < pages; p++) {
+    const url =
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel` +
+      `&regionCode=IT&relevanceLanguage=it&maxResults=50&q=${encodeURIComponent(query)}` +
+      (pageToken ? `&pageToken=${pageToken}` : "") +
+      `&key=${key}`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      console.warn(`search "${query}" ${res.status}: ${await res.text()}`);
+      break;
+    }
+    const json = (await res.json()) as {
+      nextPageToken?: string;
+      items?: Array<{ id?: { channelId?: string }; snippet?: { channelId?: string } }>;
+    };
+    for (const it of json.items ?? []) {
+      const id = it.id?.channelId ?? it.snippet?.channelId;
+      if (id) ids.push(id);
+    }
+    if (!json.nextPageToken) break;
+    pageToken = json.nextPageToken;
+  }
+  return ids;
+}
+
 export function slugify(s: string): string {
   return s
     .toLowerCase()
