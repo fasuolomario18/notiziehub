@@ -23,6 +23,7 @@ export function SiteFooter() {
             <li><Link href="/track" className="hover:text-paper">Brani</Link></li>
             <li><Link href="/classifiche" className="hover:text-paper">Classifiche</Link></li>
             <li><Link href="/trend" className="hover:text-paper">Trend</Link></li>
+            <li><Link href="/aggiungi" className="hover:text-paper">Aggiungi un canale</Link></li>
           </ul>
         </div>
         <div>

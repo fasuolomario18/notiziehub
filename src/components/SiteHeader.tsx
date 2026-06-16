@@ -27,7 +27,13 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <form action="/cerca" className="ml-auto flex-1 md:flex-none">
+        <Link
+          href="/aggiungi"
+          className="hidden whitespace-nowrap rounded-full border border-signal/60 px-3 py-1.5 text-sm text-signal transition hover:bg-signal hover:text-ink sm:inline-block"
+        >
+          + Aggiungi
+        </Link>
+        <form action="/cerca" className="flex-1 md:flex-none">
           <label htmlFor="q" className="sr-only">
             Cerca creator, artisti, brani
           </label>

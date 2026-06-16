@@ -8,10 +8,12 @@ import { entityHref } from "./links";
 import { absoluteUrl } from "./site";
 
 /**
- * Per la scala: prerenderizza solo i top-N (per dimensione); il resto è
- * generato on-demand al primo accesso e poi cachato (ISR). dynamicParams=true.
+ * Per la scala su DB free-tier: in produzione non prerenderizziamo il long tail
+ * (build non deve martellare il DB) → tutto on-demand/ISR. In sviluppo
+ * prerenderiamo i top-N per comodità. dynamicParams=true gestisce il resto.
  */
-export async function detailStaticParams(kind: Kind, limit = 60) {
+export async function detailStaticParams(kind: Kind, limit = 40) {
+  if (process.env.NODE_ENV === "production") return [];
   const list = await getEntitiesByKind(kind);
   return [...list]
     .sort((a, b) => b.primary - a.primary)
