@@ -73,7 +73,8 @@ export function metricLabel(kind: Kind, platform: Platform): string {
   if (kind === "movie" || kind === "tv") return "voti";
   if (kind === "track") return "popolarità";
   if (kind === "trend") return "video";
-  if (platform === "twitch") return "follower";
+  if (kind === "game") return "spettatori";
+  if (platform === "twitch") return "spettatori";
   if (platform === "spotify") return "follower";
   return "follower";
 }

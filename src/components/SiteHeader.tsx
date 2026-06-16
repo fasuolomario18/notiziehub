@@ -9,6 +9,7 @@ const NAV = [
   { href: "/anime", label: "Anime" },
   { href: "/manga", label: "Manga" },
   { href: "/video", label: "Video" },
+  { href: "/game", label: "Gaming" },
   { href: "/classifiche", label: "Classifiche" },
 ];
 

@@ -26,6 +26,7 @@ export function SiteFooter() {
             <li><Link href="/manga" className="hover:text-paper">Manga</Link></li>
             <li><Link href="/film" className="hover:text-paper">Film</Link></li>
             <li><Link href="/serie-tv" className="hover:text-paper">Serie TV</Link></li>
+            <li><Link href="/game" className="hover:text-paper">Gaming (Twitch)</Link></li>
             <li><Link href="/classifiche" className="hover:text-paper">Classifiche</Link></li>
             <li><Link href="/trend" className="hover:text-paper">Trend</Link></li>
             <li><Link href="/aggiungi" className="hover:text-paper">Aggiungi un canale</Link></li>

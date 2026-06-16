@@ -30,9 +30,10 @@ const TITLES: Record<Kind, { h1: string; intro: string; plural: string }> = {
     intro: "Hashtag, sound e challenge tracciati come fenomeni, con numeri.",
   },
   game: {
-    h1: "Giochi",
+    h1: "Giochi su Twitch",
     plural: "Giochi",
-    intro: "I giochi più seguiti su Twitch e dintorni.",
+    intro:
+      "I giochi più guardati in diretta su Twitch, per spettatori correnti. Dati pubblici aggiornati di continuo.",
   },
   video: {
     h1: "Video virali",
