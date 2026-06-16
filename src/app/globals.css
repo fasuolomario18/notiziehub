@@ -1,26 +1,120 @@
 @import "tailwindcss";
 
+/**
+ * Design system "scoreboard live" (brief, sez. 6).
+ * Sfondo near-black con sfumatura prugna, coppia direzionale corallo/menta,
+ * ambra per i picchi. Niente look "default da AI".
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ink: #14121c; /* sfondo */
+  --surface: #1e1b2a; /* card e pannelli */
+  --surface-2: #272336; /* hover/elevazione */
+  --signal: #ff4d6d; /* accento primario: corallo (battito, like, discesa) */
+  --rise: #2de3b0; /* menta: crescita, in salita */
+  --peak: #ffc93c; /* ambra: premi, record, #1 */
+  --paper: #ececf2; /* testo chiaro */
+  --muted: #8a86a0; /* testo secondario */
+  --line: #322d44; /* bordi */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-ink: var(--ink);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-signal: var(--signal);
+  --color-rise: var(--rise);
+  --color-peak: var(--peak);
+  --color-paper: var(--paper);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+
+  --color-background: var(--ink);
+  --color-foreground: var(--paper);
+
+  --font-display: var(--font-bricolage);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--line);
+}
+
+html {
+  background: var(--ink);
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(1200px 700px at 80% -10%, rgba(139, 92, 246, 0.10), transparent 60%),
+    radial-gradient(900px 600px at -10% 0%, rgba(255, 77, 109, 0.08), transparent 55%),
+    var(--ink);
+  color: var(--paper);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100dvh;
+}
+
+/* Cifre tabulari ovunque appaiano i numeri da tabellone */
+.tabnum {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+}
+
+/* Ticker orizzontale scorrevole (stile borsa) */
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: ticker-scroll 40s linear infinite;
+  will-change: transform;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* Flash su cambio posizione in classifica */
+@keyframes pos-flash {
+  0% { background-color: rgba(255, 201, 60, 0.25); }
+  100% { background-color: transparent; }
+}
+
+/* Rispetta prefers-reduced-motion (brief, sez. 6) */
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+    transform: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+::selection {
+  background: var(--signal);
+  color: var(--ink);
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--rise);
+  outline-offset: 2px;
+  border-radius: 2px;
 }

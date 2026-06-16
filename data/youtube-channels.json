@@ -1,0 +1,7 @@
+{
+  "_comment": "Lista canali YouTube da tracciare. Aggiungi gli ID canale (UC...). Il job collect.ts li interroga in batch. Esempi placeholder da sostituire con ID reali.",
+  "channels": [
+    { "channelId": "UC8butISFwT-Wl7EV0hUK0BQ", "category": "education" },
+    { "channelId": "UCq-Fj5jknLsUf-MWSy4_brA", "category": "music" }
+  ]
+}

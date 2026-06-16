@@ -1,0 +1,22 @@
+name: indexing
+
+# Invia fino a 200 URL/giorno alla Google Indexing API (come Globary/Prezzioggi).
+on:
+  schedule:
+    - cron: "30 6 * * *" # ogni giorno alle 06:30 UTC
+  workflow_dispatch: {}
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run index-urls
+        env:
+          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}

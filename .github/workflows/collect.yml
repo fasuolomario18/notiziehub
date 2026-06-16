@@ -1,0 +1,22 @@
+name: collect
+
+# Loop di automazione (brief sez. 5): aggiorna i dati e scrive lo storico datato.
+on:
+  schedule:
+    - cron: "0 */12 * * *" # ogni 12 ore
+  workflow_dispatch: {}
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run collect
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
