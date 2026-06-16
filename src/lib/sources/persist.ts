@@ -86,10 +86,10 @@ export async function upsertCreator(
 }
 
 export type Watchable = {
-  kind: "anime" | "manga" | "movie" | "tv";
+  kind: "anime" | "manga" | "movie" | "tv" | "artist" | "track";
   slug: string;
   name: string;
-  platform: "anilist" | "tmdb";
+  platform: "anilist" | "tmdb" | "spotify";
   country: string;
   category: string | null;
   avatarUrl?: string;

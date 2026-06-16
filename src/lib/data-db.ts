@@ -21,7 +21,8 @@ function isIndexable(kind: string, primary: number, secondary: number): boolean 
   if (kind === "anime" || kind === "manga" || kind === "movie" || kind === "tv") {
     return secondary > 0 || primary >= 50;
   }
-  return primary >= MIN_PRIMARY_FOR_INDEX;
+  if (kind === "track") return primary >= 40; // popolarità Spotify
+  return primary >= MIN_PRIMARY_FOR_INDEX; // creator/video/artist: numeri grossi
 }
 
 type Row = {
@@ -251,7 +252,8 @@ export async function getSitemapSlugs(): Promise<{ kind: Kind; slug: string }[]>
     .where(
       sql`(
         (${entities.kind} IN ('anime','manga','movie','tv') AND (${stats.secondaryMetric} > 0 OR ${stats.primaryMetric} >= 50))
-        OR (${entities.kind} NOT IN ('anime','manga','movie','tv') AND ${stats.primaryMetric} >= ${MIN_PRIMARY_FOR_INDEX})
+        OR (${entities.kind} = 'track' AND ${stats.primaryMetric} >= 40)
+        OR (${entities.kind} NOT IN ('anime','manga','movie','tv','track') AND ${stats.primaryMetric} >= ${MIN_PRIMARY_FOR_INDEX})
       )`
     )
     .orderBy(desc(stats.primaryMetric))
