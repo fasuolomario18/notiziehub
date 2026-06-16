@@ -46,7 +46,8 @@ async function searchPage(
   q: string,
   type: "artist" | "track",
   offset: number,
-  token: string
+  token: string,
+  retries = 2
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   // App in "development mode": il limite max della search è 10.
@@ -55,9 +56,10 @@ async function searchPage(
     `&type=${type}&limit=10&offset=${offset}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (res.status === 429) {
-    const wait = Number(res.headers.get("retry-after") ?? "2") * 1000;
+    if (retries <= 0) return null; // niente attese infinite: arrenditi
+    const wait = Math.min(Number(res.headers.get("retry-after") ?? "5"), 30) * 1000;
     await new Promise((r) => setTimeout(r, wait + 500));
-    return searchPage(q, type, offset, token);
+    return searchPage(q, type, offset, token, retries - 1);
   }
   if (!res.ok) return null;
   return res.json();
