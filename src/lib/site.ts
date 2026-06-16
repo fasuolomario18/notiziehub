@@ -1,6 +1,6 @@
 /** Configurazione centrale del sito. */
 export const SITE = {
-  name: "notiziehub",
+  name: "notizihub",
   tagline: "Il tabellone vivo della cultura giovane",
   description:
     "Classifiche, statistiche e crescite di creator, artisti e brani — dati pubblici aggiornati in automatico. Il tabellone vivo della cultura giovane.",

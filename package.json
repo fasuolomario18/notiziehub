@@ -10,7 +10,7 @@
     "collect": "tsx scripts/collect.ts",
     "index-urls": "tsx scripts/index-urls.ts",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push --force"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

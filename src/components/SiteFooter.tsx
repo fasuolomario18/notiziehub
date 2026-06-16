@@ -7,7 +7,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 md:grid-cols-4">
         <div>
           <Link href="/" className="font-display text-lg">
-            notizie<span className="text-signal">hub</span>
+            notizi<span className="text-signal">hub</span>
           </Link>
           <p className="mt-2 text-sm text-muted">{SITE.tagline}.</p>
           <p className="mt-2 text-xs text-muted">

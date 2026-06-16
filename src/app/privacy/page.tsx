@@ -3,7 +3,7 @@ import { SITE } from "@/lib/site";
 
 export const metadata = {
   title: "Informativa sulla privacy",
-  description: "Come notiziehub tratta i dati personali e pubblici.",
+  description: "Come notizihub tratta i dati personali e pubblici.",
   alternates: { canonical: "/privacy" },
 };
 

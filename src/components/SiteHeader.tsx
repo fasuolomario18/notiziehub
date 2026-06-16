@@ -14,7 +14,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-line bg-ink/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
         <Link href="/" className="font-display text-xl tracking-tight">
-          notizie<span className="text-signal">hub</span>
+          notizi<span className="text-signal">hub</span>
         </Link>
         <nav className="hidden flex-1 items-center gap-1 md:flex">
           {NAV.map((n) => (

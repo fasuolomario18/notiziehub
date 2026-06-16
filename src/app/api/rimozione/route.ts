@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   }
 
   const body = [
-    "Nuova richiesta di rimozione — notiziehub",
+    "Nuova richiesta di rimozione — notizihub",
     `URL: ${url}`,
     `Email richiedente: ${email}`,
     `Ruolo: ${role ?? "-"}`,
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: process.env.RESEND_FROM ?? "notiziehub <onboarding@resend.dev>",
+          from: process.env.RESEND_FROM ?? "notizihub <onboarding@resend.dev>",
           to: SITE.email,
           subject: `Richiesta rimozione: ${url}`,
           text: body,

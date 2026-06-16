@@ -3,7 +3,7 @@ import { SITE } from "@/lib/site";
 
 export const metadata = {
   title: "Termini e condizioni",
-  description: "Termini d'uso del sito notiziehub.",
+  description: "Termini d'uso del sito notizihub.",
   alternates: { canonical: "/termini" },
 };
 

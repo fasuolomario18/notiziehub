@@ -22,7 +22,7 @@ export default function Page() {
         Segnala / Richiedi rimozione
       </h1>
       <p className="mt-3 text-muted">
-        notiziehub pubblica solo dati pubblici e aggregati. Se sei la persona
+        notizihub pubblica solo dati pubblici e aggregati. Se sei la persona
         interessata (o un genitore/tutore nel caso di un minore) e vuoi che una
         pagina venga rimossa, compila il modulo. Procediamo{" "}
         <strong>rapidamente</strong>. In alternativa scrivi a{" "}

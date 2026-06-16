@@ -3,7 +3,7 @@ import { SITE } from "@/lib/site";
 
 export const metadata = {
   title: "Cookie Policy",
-  description: "Come notiziehub usa i cookie e le tecnologie simili.",
+  description: "Come notizihub usa i cookie e le tecnologie simili.",
   alternates: { canonical: "/cookie" },
 };
 

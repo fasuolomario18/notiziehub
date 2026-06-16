@@ -1,19 +1,20 @@
 import { SEED, type SeedEntity } from "./seed-data";
 import type { EntityView, HistoryPoint, Kind } from "./types";
+import { hasDb } from "./db";
+import * as DB from "./data-db";
 
 /**
- * Data-layer unico per tutto il sito.
- * - Senza DATABASE_URL: costruisce le viste dai dati seed con storico deterministico.
- * - Con DATABASE_URL: (TODO Fase 0.5) legge da Postgres via Drizzle.
- * Le pagine SSG chiamano solo queste funzioni, ignorando la sorgente.
+ * Data-layer unico per tutto il sito (dispatcher).
+ * - Senza DATABASE_URL: dati seed con storico deterministico (gira ovunque).
+ * - Con DATABASE_URL: legge da Postgres via Drizzle (vedi data-db.ts).
+ * Le pagine chiamano solo queste funzioni, ignorando la sorgente.
  */
 
 const HISTORY_DAYS = 30;
-/** Soglia "regola d'oro" (sez. 2): sotto questi punti dati la pagina va in noindex. */
 const MIN_HISTORY_FOR_INDEX = 14;
 const MIN_PRIMARY_FOR_INDEX = 1_000;
 
-// ---- PRNG deterministico (mulberry32) per storico stabile in SSG ----
+// ---- PRNG deterministico (mulberry32) per storico seed stabile in SSG ----
 function hashSlug(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) {
@@ -32,12 +33,9 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
 function isoDay(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
-
-/** Genera lo storico a ritroso dal valore attuale, applicando crescita+rumore. */
 function buildHistory(e: SeedEntity): HistoryPoint[] {
   const rand = mulberry32(hashSlug(e.slug));
   const points: HistoryPoint[] = [];
@@ -47,13 +45,11 @@ function buildHistory(e: SeedEntity): HistoryPoint[] {
     const d = new Date(today);
     d.setDate(today.getDate() - i);
     points.push({ day: isoDay(d), value: Math.max(0, Math.round(value)) });
-    // passo indietro: togli la crescita del giorno ± rumore
     const noise = (rand() - 0.5) * 2 * e.volatility * Math.abs(e.dailyGrowth);
     value -= e.dailyGrowth + noise;
   }
   return points.reverse();
 }
-
 function toView(e: SeedEntity): EntityView {
   const history = buildHistory(e);
   const last = history[history.length - 1].value;
@@ -84,36 +80,58 @@ function toView(e: SeedEntity): EntityView {
   };
 }
 
-// ---- API pubblica del data-layer ----
-
 let _cache: EntityView[] | null = null;
 function allViews(): EntityView[] {
   if (!_cache) _cache = SEED.map(toView);
   return _cache;
 }
 
+export type RankingConfig = {
+  platform: string;
+  country: string;
+  period: string;
+};
+
+function lastMonths(n: number): string[] {
+  const out: string[] = [];
+  const d = new Date();
+  for (let i = 0; i < n; i++) {
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    d.setMonth(d.getMonth() - 1);
+  }
+  return out;
+}
+function valueAtPeriod(e: EntityView, period: string): number {
+  const within = e.history.filter((p) => p.day.startsWith(period));
+  if (within.length > 0) return within[within.length - 1].value;
+  return e.history[0]?.value ?? e.primary;
+}
+
+// ════════════════ API pubblica (dispatcher seed ↔ DB) ════════════════
+
 export async function getAllEntities(): Promise<EntityView[]> {
-  return allViews();
+  return hasDb ? DB.getAllEntities() : allViews();
 }
 
 export async function getEntitiesByKind(kind: Kind): Promise<EntityView[]> {
-  return allViews().filter((e) => e.kind === kind);
+  return hasDb ? DB.getEntitiesByKind(kind) : allViews().filter((e) => e.kind === kind);
 }
 
 export async function getEntity(
   kind: Kind,
   slug: string
 ): Promise<EntityView | null> {
+  if (hasDb) return DB.getEntity(kind, slug);
   return allViews().find((e) => e.kind === kind && e.slug === slug) ?? null;
 }
 
-/** Lookup per solo slug (usato dalle pagine /vs/[a]/[b]). */
 export async function getBySlug(slug: string): Promise<EntityView | null> {
+  if (hasDb) return DB.getBySlug(slug);
   return allViews().find((e) => e.slug === slug) ?? null;
 }
 
-/** Cerca per nome/slug/categoria (pagina /cerca). */
 export async function search(q: string): Promise<EntityView[]> {
+  if (hasDb) return DB.search(q);
   const needle = q.trim().toLowerCase();
   if (!needle) return [];
   return allViews()
@@ -126,7 +144,6 @@ export async function search(q: string): Promise<EntityView[]> {
     .sort((a, b) => b.primary - a.primary);
 }
 
-/** Classifica per delta7d (chi sta salendo) o per valore assoluto. */
 export async function getLeaderboard(opts?: {
   kind?: Kind;
   platform?: string;
@@ -135,6 +152,7 @@ export async function getLeaderboard(opts?: {
   sort?: "rising" | "top";
   limit?: number;
 }): Promise<EntityView[]> {
+  if (hasDb) return DB.getLeaderboard(opts);
   let list = allViews();
   if (opts?.kind) list = list.filter((e) => e.kind === opts.kind);
   if (opts?.platform) list = list.filter((e) => e.platform === opts.platform);
@@ -147,18 +165,18 @@ export async function getLeaderboard(opts?: {
   return opts?.limit ? list.slice(0, opts.limit) : list;
 }
 
-/** Voci per il ticker: top movers (salita e discesa). */
 export async function getTicker(limit = 12): Promise<EntityView[]> {
+  if (hasDb) return DB.getTicker(limit);
   return [...allViews()]
     .sort((a, b) => Math.abs(b.delta7dPct) - Math.abs(a.delta7dPct))
     .slice(0, limit);
 }
 
-/** Entità simili: stessa categoria o piattaforma, dimensioni vicine. */
 export async function getSimilar(
   entity: EntityView,
   limit = 8
 ): Promise<EntityView[]> {
+  if (hasDb) return DB.getSimilar(entity, limit);
   return allViews()
     .filter((e) => e.slug !== entity.slug && e.kind === entity.kind)
     .map((e) => ({
@@ -173,11 +191,8 @@ export async function getSimilar(
     .map((x) => x.e);
 }
 
-/**
- * Coppie /vs sensate: stessa categoria e dimensioni simili (sez. 2).
- * Evita "doorway pages" da combinazioni assurde.
- */
 export async function getVersusPairs(): Promise<[EntityView, EntityView][]> {
+  if (hasDb) return DB.getVersusPairs();
   const pairs: [EntityView, EntityView][] = [];
   const byKind = new Map<Kind, EntityView[]>();
   for (const e of allViews()) {
@@ -192,7 +207,7 @@ export async function getVersusPairs(): Promise<[EntityView, EntityView][]> {
         if (a.category !== b.category) continue;
         const ratio =
           Math.max(a.primary, b.primary) / Math.max(1, Math.min(a.primary, b.primary));
-        if (ratio > 5) continue; // dimensioni troppo diverse
+        if (ratio > 5) continue;
         pairs.push(a.primary >= b.primary ? [a, b] : [b, a]);
       }
     }
@@ -201,58 +216,32 @@ export async function getVersusPairs(): Promise<[EntityView, EntityView][]> {
 }
 
 export async function getCategories(): Promise<string[]> {
+  if (hasDb) return DB.getCategories();
   return [...new Set(allViews().map((e) => e.category))].sort();
 }
 
 export async function getEntitiesByCategory(
   category: string
 ): Promise<EntityView[]> {
+  if (hasDb) return DB.getEntitiesByCategory(category);
   return allViews()
     .filter((e) => e.category === category)
     .sort((a, b) => b.primary - a.primary);
 }
 
-// ---- CLASSIFICHE DATATE (archivi storici → nuovi URL nel tempo) ----
-
-export type RankingConfig = {
-  platform: string;
-  country: string; // "italia" | "global"
-  period: string; // "YYYY-MM"
-};
-
-/** Ultimi N mesi come periodi mensili. */
-function lastMonths(n: number): string[] {
-  const out: string[] = [];
-  const d = new Date();
-  for (let i = 0; i < n; i++) {
-    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
-    d.setMonth(d.getMonth() - 1);
-  }
-  return out;
-}
-
-/** Combinazioni di classifica disponibili (solo dove ci sono abbastanza entità). */
 export async function getRankingConfigs(): Promise<RankingConfig[]> {
+  if (hasDb) return DB.getRankingConfigs();
   const views = allViews();
   const platforms = [...new Set(views.map((e) => e.platform))];
-  const periods = lastMonths(2); // mese corrente + precedente (coperti dallo storico)
+  const periods = lastMonths(2);
   const configs: RankingConfig[] = [];
   for (const platform of platforms) {
-    const count = views.filter((e) => e.platform === platform).length;
-    if (count < 3) continue; // sotto soglia non si genera (sez. 2)
+    if (views.filter((e) => e.platform === platform).length < 3) continue;
     for (const period of periods) {
       configs.push({ platform, country: "italia", period });
     }
   }
   return configs;
-}
-
-/** Valore storico di un'entità alla fine del mese `period` (YYYY-MM). */
-function valueAtPeriod(e: EntityView, period: string): number {
-  const within = e.history.filter((p) => p.day.startsWith(period));
-  if (within.length > 0) return within[within.length - 1].value;
-  // periodo prima dello storico: stima a ritroso dal primo punto
-  return e.history[0]?.value ?? e.primary;
 }
 
 export async function getRanking(
@@ -261,6 +250,7 @@ export async function getRanking(
   period: string,
   limit = 50
 ): Promise<{ entity: EntityView; value: number }[]> {
+  if (hasDb) return DB.getRanking(platform, country, period, limit);
   return allViews()
     .filter((e) => e.platform === platform)
     .filter((e) => (country === "italia" ? e.country === "IT" : true))

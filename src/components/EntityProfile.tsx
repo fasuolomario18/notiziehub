@@ -91,7 +91,17 @@ export function EntityProfile({
 
         <Card className="mt-6 p-4">
           <h2 className="mb-2 font-display text-xl">Crescita (30 giorni)</h2>
-          <GrowthChart data={e.history} color={color} />
+          {e.history.length >= 2 ? (
+            <GrowthChart data={e.history} color={color} />
+          ) : (
+            <div className="flex h-[160px] flex-col items-center justify-center text-center text-sm text-muted">
+              <p>📈 Storico in costruzione.</p>
+              <p>
+                Registriamo un dato al giorno: il grafico di crescita appare da
+                domani e si arricchisce col tempo.
+              </p>
+            </div>
+          )}
         </Card>
 
         <AdSlot slot="profile" />

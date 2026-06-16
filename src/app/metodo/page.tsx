@@ -1,7 +1,7 @@
 import { Container, Breadcrumbs } from "@/components/ui";
 
 export const metadata = {
-  title: "Come funziona notiziehub",
+  title: "Come funziona notizihub",
   description:
     "Da dove arrivano i dati, come li aggiorniamo e perché pubblichiamo solo fatti e numeri con la fonte sempre linkata.",
   alternates: { canonical: "/metodo" },
@@ -19,7 +19,7 @@ export default function Page() {
       <h1 className="font-display text-4xl tracking-tight">Come funziona</h1>
       <article className="mt-6 space-y-5 leading-relaxed text-paper/90">
         <p>
-          <strong>notiziehub</strong> è un tabellone di dati sulla cultura
+          <strong>notizihub</strong> è un tabellone di dati sulla cultura
           giovane: creator, artisti, brani e trend. Non è un sito di gossip:
           pubblichiamo solo <strong>fatti e numeri</strong>, con la fonte
           ufficiale sempre linkata.

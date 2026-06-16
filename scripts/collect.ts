@@ -7,15 +7,23 @@
  *
  * Schedulabile con GitHub Actions cron (gratis) o Vercel Cron.
  */
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: ".env.local" }); // carica .env.local in locale (in CI le env vengono dai secrets)
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
-import { db, hasDb } from "../src/lib/db";
-import { entities, stats, history } from "../src/lib/schema";
-import { fetchChannels, slugify } from "../src/lib/sources/youtube";
+import {
+  fetchChannels,
+  fetchByHandle,
+  slugify,
+  type ChannelStat,
+} from "../src/lib/sources/youtube";
 
 async function main() {
+  // import dinamici DOPO il caricamento env (db.ts legge process.env al load)
+  const { db, hasDb } = await import("../src/lib/db");
+  const { entities, stats, history } = await import("../src/lib/schema");
+
   if (!hasDb || !db) {
     console.error("DATABASE_URL mancante: il job richiede un Postgres.");
     process.exit(1);
@@ -27,13 +35,42 @@ async function main() {
 
   const cfg = JSON.parse(
     readFileSync(join(process.cwd(), "data", "youtube-channels.json"), "utf8")
-  ) as { channels: { channelId: string; category?: string }[] };
+  ) as { channels: { channelId?: string; handle?: string; category?: string }[] };
 
-  const ids = cfg.channels.map((c) => c.channelId);
-  const catById = new Map(cfg.channels.map((c) => [c.channelId, c.category]));
-  console.log(`Raccolta YouTube: ${ids.length} canali…`);
+  const byId = cfg.channels.filter((c) => c.channelId);
+  const byHandle = cfg.channels.filter((c) => c.handle && !c.channelId);
+  console.log(
+    `Raccolta YouTube: ${byId.length} per ID + ${byHandle.length} per handle…`
+  );
 
-  const results = await fetchChannels(ids);
+  // categoria associata al risultato (per channelId e, dopo la risoluzione, per handle)
+  const catByChannelId = new Map<string, string | undefined>();
+  const results: ChannelStat[] = [];
+
+  // 1) batch per ID
+  if (byId.length) {
+    for (const c of byId) catByChannelId.set(c.channelId!, c.category);
+    results.push(...(await fetchChannels(byId.map((c) => c.channelId!))));
+  }
+
+  // 2) risoluzione handle (1 unità ciascuno)
+  let resolved = 0;
+  for (const c of byHandle) {
+    try {
+      const stat = await fetchByHandle(c.handle!);
+      if (stat) {
+        catByChannelId.set(stat.channelId, c.category);
+        results.push(stat);
+        resolved++;
+      } else {
+        console.warn(`handle non trovato: ${c.handle}`);
+      }
+    } catch (err) {
+      console.warn(`errore su ${c.handle}:`, (err as Error).message);
+    }
+  }
+  console.log(`Handle risolti: ${resolved}/${byHandle.length}`);
+  const catById = catByChannelId;
   const today = new Date().toISOString().slice(0, 10);
   let updated = 0;
 

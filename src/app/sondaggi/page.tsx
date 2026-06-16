@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Sondaggi della community",
   description:
-    "Vota e di' la tua: chi è il miglior rapper, il creator dell'anno e i fenomeni del momento. I sondaggi della community di notiziehub.",
+    "Vota e di' la tua: chi è il miglior rapper, il creator dell'anno e i fenomeni del momento. I sondaggi della community di notizihub.",
   alternates: { canonical: "/sondaggi" },
 };
 

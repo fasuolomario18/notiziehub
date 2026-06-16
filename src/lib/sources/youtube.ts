@@ -19,49 +19,61 @@ export type ChannelStat = {
 
 const API = "https://www.googleapis.com/youtube/v3/channels";
 
-/** Recupera statistiche per fino a 50 canali in una sola chiamata (1 unità quota). */
+type ApiItem = {
+  id: string;
+  snippet: {
+    title: string;
+    description: string;
+    country?: string;
+    thumbnails?: { medium?: { url: string } };
+  };
+  statistics: {
+    subscriberCount?: string;
+    viewCount?: string;
+    videoCount?: string;
+  };
+};
+
+function mapItem(item: ApiItem): ChannelStat {
+  return {
+    channelId: item.id,
+    title: item.snippet.title,
+    description: item.snippet.description?.slice(0, 280) ?? "",
+    thumbnail: item.snippet.thumbnails?.medium?.url,
+    country: item.snippet.country,
+    subscribers: Number(item.statistics.subscriberCount ?? 0),
+    views: Number(item.statistics.viewCount ?? 0),
+    videos: Number(item.statistics.videoCount ?? 0),
+  };
+}
+
+/** Recupera statistiche per fino a 50 canali per ID in una sola chiamata (1 unità). */
 export async function fetchChannels(ids: string[]): Promise<ChannelStat[]> {
   const key = process.env.YOUTUBE_API_KEY;
   if (!key) throw new Error("YOUTUBE_API_KEY mancante");
   const out: ChannelStat[] = [];
-
   for (let i = 0; i < ids.length; i += 50) {
     const batch = ids.slice(i, i + 50);
     const url = `${API}?part=snippet,statistics&id=${batch.join(",")}&key=${key}`;
     const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`YouTube API ${res.status}: ${await res.text()}`);
-    }
-    const json = (await res.json()) as {
-      items?: Array<{
-        id: string;
-        snippet: {
-          title: string;
-          description: string;
-          country?: string;
-          thumbnails?: { medium?: { url: string } };
-        };
-        statistics: {
-          subscriberCount?: string;
-          viewCount?: string;
-          videoCount?: string;
-        };
-      }>;
-    };
-    for (const item of json.items ?? []) {
-      out.push({
-        channelId: item.id,
-        title: item.snippet.title,
-        description: item.snippet.description?.slice(0, 280) ?? "",
-        thumbnail: item.snippet.thumbnails?.medium?.url,
-        country: item.snippet.country,
-        subscribers: Number(item.statistics.subscriberCount ?? 0),
-        views: Number(item.statistics.viewCount ?? 0),
-        videos: Number(item.statistics.videoCount ?? 0),
-      });
-    }
+    if (!res.ok) throw new Error(`YouTube API ${res.status}: ${await res.text()}`);
+    const json = (await res.json()) as { items?: ApiItem[] };
+    for (const item of json.items ?? []) out.push(mapItem(item));
   }
   return out;
+}
+
+/** Risolve un handle (@nome) in statistiche canale (1 unità). null se non trovato. */
+export async function fetchByHandle(handle: string): Promise<ChannelStat | null> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) throw new Error("YOUTUBE_API_KEY mancante");
+  const h = handle.replace(/^@/, "");
+  const url = `${API}?part=snippet,statistics&forHandle=${encodeURIComponent(h)}&key=${key}`;
+  const res = await fetch(url);
+  if (!res.ok) return null;
+  const json = (await res.json()) as { items?: ApiItem[] };
+  const item = json.items?.[0];
+  return item ? mapItem(item) : null;
 }
 
 export function slugify(s: string): string {
