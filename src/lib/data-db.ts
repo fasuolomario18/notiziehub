@@ -1,14 +1,15 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, ne, desc, sql, gte, between } from "drizzle-orm";
 import { db } from "./db";
 import { entities, stats, history } from "./schema";
 import type { EntityView, HistoryPoint, Kind, Platform } from "./types";
 
 /**
- * Path di lettura dal DB (usato quando DATABASE_URL è impostata).
- * Mantiene le stesse firme di data.ts. Le pagine non sanno la differenza.
+ * Path DB scala-ready: ogni funzione usa SQL con WHERE/ORDER/LIMIT.
+ * Niente "carica tutte le righe in memoria" → regge decine/centinaia di migliaia di entità.
  */
 
 const MIN_PRIMARY_FOR_INDEX = 1_000;
+const LIST_LIMIT = 100;
 
 type Row = {
   kind: string;
@@ -66,86 +67,40 @@ const SELECT = {
   delta7d: stats.delta7d,
 };
 
-/** Query diretta al DB (sempre), usata anche dallo snapshot di build. */
-export async function fetchAllFromDb(): Promise<EntityView[]> {
-  const rows = await db!
-    .select(SELECT)
-    .from(entities)
-    .leftJoin(stats, eq(stats.entityId, entities.id));
-  return rows.map((r) => rowToView(r as Row));
+function base() {
+  return db!.select(SELECT).from(entities).leftJoin(stats, eq(stats.entityId, entities.id));
 }
 
-// Memo di processo: collassa le tante chiamate (SSG multi-pagina) in 1 query.
-let _rowsCache: { at: number; data: EntityView[] } | null = null;
-const ROWS_TTL_MS = 60_000;
+const risingOrder = sql`(${stats.delta7d}::float / NULLIF(${stats.primaryMetric} - ${stats.delta7d}, 0)) DESC NULLS LAST`;
 
-async function allRows(): Promise<EntityView[]> {
-  // In build su DB free-tier (BUILD_SNAPSHOT=1) leggi lo snapshot su file:
-  // zero query al DB durante la generazione delle pagine.
-  if (process.env.BUILD_SNAPSHOT === "1") {
-    if (!_rowsCache) {
-      const { readFileSync } = await import("node:fs");
-      const { join } = await import("node:path");
-      try {
-        const raw = readFileSync(join(process.cwd(), "data", "snapshot.json"), "utf8");
-        _rowsCache = { at: Date.now(), data: JSON.parse(raw) as EntityView[] };
-      } catch {
-        _rowsCache = { at: Date.now(), data: [] };
-      }
-    }
-    return _rowsCache.data;
-  }
-  const now = Date.now();
-  if (_rowsCache && now - _rowsCache.at < ROWS_TTL_MS) return _rowsCache.data;
-  const data = await fetchAllFromDb();
-  _rowsCache = { at: now, data };
-  return data;
+export async function fetchAllFromDb(): Promise<EntityView[]> {
+  const rows = await base();
+  return rows.map((r) => rowToView(r as Row));
 }
 
 async function historyFor(kind: Kind, slug: string): Promise<HistoryPoint[]> {
   const since = new Date();
   since.setDate(since.getDate() - 60);
-  const sinceDay = since.toISOString().slice(0, 10);
   const rows = await db!
     .select({ day: history.day, value: history.primaryMetric })
     .from(history)
     .innerJoin(entities, eq(entities.id, history.entityId))
-    .where(
-      and(
-        eq(entities.kind, kind),
-        eq(entities.slug, slug),
-        gte(history.day, sinceDay)
-      )
-    )
+    .where(and(eq(entities.kind, kind), eq(entities.slug, slug), gte(history.day, since.toISOString().slice(0, 10))))
     .orderBy(history.day);
   return rows.map((r) => ({ day: String(r.day), value: Number(r.value) }));
 }
 
-export async function getAllEntities(): Promise<EntityView[]> {
-  return allRows();
-}
-
-export async function getEntitiesByKind(kind: Kind): Promise<EntityView[]> {
-  return (await allRows()).filter((e) => e.kind === kind);
-}
-
-export async function getEntity(
-  kind: Kind,
-  slug: string
-): Promise<EntityView | null> {
-  const all = await allRows();
-  const base = all.find((e) => e.kind === kind && e.slug === slug);
-  if (!base) return null;
-  const hist = await historyFor(kind, slug);
-  return { ...base, history: hist, indexable: base.primary >= MIN_PRIMARY_FOR_INDEX };
+export async function getEntity(kind: Kind, slug: string): Promise<EntityView | null> {
+  const rows = await base().where(and(eq(entities.kind, kind), eq(entities.slug, slug))).limit(1);
+  if (!rows.length) return null;
+  return rowToView(rows[0] as Row, await historyFor(kind, slug));
 }
 
 export async function getBySlug(slug: string): Promise<EntityView | null> {
-  const all = await allRows();
-  const base = all.find((e) => e.slug === slug);
-  if (!base) return null;
-  const hist = await historyFor(base.kind, slug);
-  return { ...base, history: hist };
+  const rows = await base().where(eq(entities.slug, slug)).limit(1);
+  if (!rows.length) return null;
+  const r = rows[0] as Row;
+  return rowToView(r, await historyFor(r.kind as Kind, slug));
 }
 
 export async function getLeaderboard(opts?: {
@@ -156,91 +111,122 @@ export async function getLeaderboard(opts?: {
   sort?: "rising" | "top";
   limit?: number;
 }): Promise<EntityView[]> {
-  let list = await allRows();
-  if (opts?.kind) list = list.filter((e) => e.kind === opts.kind);
-  if (opts?.platform) list = list.filter((e) => e.platform === opts.platform);
-  if (opts?.country) list = list.filter((e) => e.country === opts.country);
-  if (opts?.category) list = list.filter((e) => e.category === opts.category);
-  const sort = opts?.sort ?? "top";
-  list = [...list].sort((a, b) =>
-    sort === "rising" ? b.delta7dPct - a.delta7dPct : b.primary - a.primary
-  );
-  return opts?.limit ? list.slice(0, opts.limit) : list;
+  const conds = [];
+  if (opts?.kind) conds.push(eq(entities.kind, opts.kind));
+  if (opts?.platform) conds.push(eq(entities.platform, opts.platform));
+  if (opts?.country) conds.push(eq(entities.country, opts.country));
+  if (opts?.category) conds.push(eq(entities.category, opts.category));
+  let q = base().$dynamic();
+  if (conds.length) q = q.where(and(...conds));
+  q = q.orderBy(opts?.sort === "rising" ? risingOrder : desc(stats.primaryMetric));
+  const rows = await q.limit(opts?.limit ?? LIST_LIMIT);
+  return rows.map((r) => rowToView(r as Row));
+}
+
+export async function getEntitiesByKind(kind: Kind, limit = LIST_LIMIT): Promise<EntityView[]> {
+  const rows = await base()
+    .where(eq(entities.kind, kind))
+    .orderBy(desc(stats.primaryMetric))
+    .limit(limit);
+  return rows.map((r) => rowToView(r as Row));
 }
 
 export async function getTicker(limit = 12): Promise<EntityView[]> {
-  return [...(await allRows())]
-    .sort((a, b) => Math.abs(b.delta7dPct) - Math.abs(a.delta7dPct))
-    .slice(0, limit);
+  const rows = await base()
+    .orderBy(sql`ABS(${stats.delta7d}) DESC NULLS LAST`)
+    .limit(limit);
+  return rows.map((r) => rowToView(r as Row));
 }
 
-export async function getSimilar(
-  entity: EntityView,
-  limit = 8
-): Promise<EntityView[]> {
-  return (await allRows())
-    .filter((e) => e.slug !== entity.slug && e.kind === entity.kind)
-    .map((e) => ({
-      e,
-      score:
-        (e.category === entity.category ? 0 : 1) +
-        Math.abs(Math.log10(e.primary + 1) - Math.log10(entity.primary + 1)),
-    }))
-    .sort((a, b) => a.score - b.score)
-    .slice(0, limit)
-    .map((x) => x.e);
+export async function getSimilar(entity: EntityView, limit = 8): Promise<EntityView[]> {
+  const lo = Math.floor(entity.primary / 4);
+  const hi = entity.primary * 4 + 1000;
+  const rows = await base()
+    .where(
+      and(
+        eq(entities.kind, entity.kind),
+        ne(entities.slug, entity.slug),
+        between(stats.primaryMetric, lo, hi)
+      )
+    )
+    .orderBy(desc(stats.primaryMetric))
+    .limit(limit);
+  return rows.map((r) => rowToView(r as Row));
 }
 
 export async function getVersusPairs(): Promise<[EntityView, EntityView][]> {
+  // Solo i top per popolarità → coppie sensate, niente esplosione su 50k entità.
+  const top = (await base().orderBy(desc(stats.primaryMetric)).limit(400)).map((r) =>
+    rowToView(r as Row)
+  );
   const pairs: [EntityView, EntityView][] = [];
-  const byKind = new Map<Kind, EntityView[]>();
-  for (const e of await allRows()) {
-    if (!byKind.has(e.kind)) byKind.set(e.kind, []);
-    byKind.get(e.kind)!.push(e);
+  const byKey = new Map<string, EntityView[]>();
+  for (const e of top) {
+    const k = `${e.kind}:${e.category}`;
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k)!.push(e);
   }
-  for (const group of byKind.values()) {
-    for (let i = 0; i < group.length; i++) {
-      for (let j = i + 1; j < group.length; j++) {
+  for (const group of byKey.values()) {
+    for (let i = 0; i < group.length && pairs.length < 500; i++) {
+      for (let j = i + 1; j < group.length && pairs.length < 500; j++) {
         const a = group[i];
         const b = group[j];
-        if (!a.category || a.category !== b.category) continue;
-        const ratio =
-          Math.max(a.primary, b.primary) /
-          Math.max(1, Math.min(a.primary, b.primary));
+        const ratio = Math.max(a.primary, b.primary) / Math.max(1, Math.min(a.primary, b.primary));
         if (ratio > 5) continue;
         pairs.push(a.primary >= b.primary ? [a, b] : [b, a]);
       }
     }
   }
-  return pairs.slice(0, 500); // limite prudenziale
+  return pairs;
 }
 
 export async function getCategories(): Promise<string[]> {
-  return [...new Set((await allRows()).map((e) => e.category).filter(Boolean))].sort();
+  const rows = await db!
+    .select({ category: entities.category, n: sql<number>`count(*)::int` })
+    .from(entities)
+    .where(sql`${entities.category} is not null`)
+    .groupBy(entities.category)
+    .orderBy(sql`count(*) DESC`)
+    .limit(200);
+  return rows.map((r) => r.category!).filter(Boolean);
 }
 
-export async function getEntitiesByCategory(
-  category: string
-): Promise<EntityView[]> {
-  return (await allRows())
-    .filter((e) => e.category === category)
-    .sort((a, b) => b.primary - a.primary);
+export async function getEntitiesByCategory(category: string, limit = LIST_LIMIT): Promise<EntityView[]> {
+  const rows = await base()
+    .where(eq(entities.category, category))
+    .orderBy(desc(stats.primaryMetric))
+    .limit(limit);
+  return rows.map((r) => rowToView(r as Row));
 }
 
-export async function search(q: string): Promise<EntityView[]> {
-  const needle = q.trim().toLowerCase();
+export async function search(q: string, limit = 40): Promise<EntityView[]> {
+  const needle = q.trim();
   if (!needle) return [];
-  return (await allRows())
-    .filter(
-      (e) =>
-        e.name.toLowerCase().includes(needle) ||
-        e.slug.includes(needle) ||
-        e.category.includes(needle)
-    )
-    .sort((a, b) => b.primary - a.primary);
+  const like = `%${needle}%`;
+  const rows = await base()
+    .where(sql`(${entities.name} ILIKE ${like} OR ${entities.slug} ILIKE ${like})`)
+    .orderBy(desc(stats.primaryMetric))
+    .limit(limit);
+  return rows.map((r) => rowToView(r as Row));
 }
 
-// Classifiche
+export async function getAllEntities(): Promise<EntityView[]> {
+  return fetchAllFromDb();
+}
+
+/** Slug minimali per la sitemap (solo entità indicizzabili). Leggero anche a 100k. */
+export async function getSitemapSlugs(): Promise<{ kind: Kind; slug: string }[]> {
+  const rows = await db!
+    .select({ kind: entities.kind, slug: entities.slug })
+    .from(entities)
+    .innerJoin(stats, eq(stats.entityId, entities.id))
+    .where(gte(stats.primaryMetric, MIN_PRIMARY_FOR_INDEX))
+    .orderBy(desc(stats.primaryMetric))
+    .limit(200_000);
+  return rows.map((r) => ({ kind: r.kind as Kind, slug: r.slug }));
+}
+
+// ---- Classifiche ----
 export type RankingConfig = { platform: string; country: string; period: string };
 
 function lastMonths(n: number): string[] {
@@ -254,13 +240,15 @@ function lastMonths(n: number): string[] {
 }
 
 export async function getRankingConfigs(): Promise<RankingConfig[]> {
-  const views = await allRows();
-  const platforms = [...new Set(views.map((e) => e.platform))];
+  const rows = await db!
+    .select({ platform: entities.platform, n: sql<number>`count(*)::int` })
+    .from(entities)
+    .groupBy(entities.platform)
+    .having(sql`count(*) >= 3`);
   const periods = lastMonths(2);
   const configs: RankingConfig[] = [];
-  for (const platform of platforms) {
-    if (views.filter((e) => e.platform === platform).length < 3) continue;
-    for (const period of periods) configs.push({ platform, country: "italia", period });
+  for (const r of rows) {
+    for (const period of periods) configs.push({ platform: r.platform, country: "italia", period });
   }
   return configs;
 }
@@ -272,42 +260,37 @@ export async function getRanking(
   limit = 50
 ): Promise<{ entity: EntityView; value: number }[]> {
   const currentPeriod = lastMonths(1)[0];
-  const views = (await allRows())
-    .filter((e) => e.platform === platform)
-    .filter((e) => (country === "italia" ? e.country === "IT" : true));
+  const conds = [eq(entities.platform, platform)];
+  if (country === "italia") conds.push(eq(entities.country, "IT"));
 
-  // Mese corrente: usa il valore attuale (niente query per-entità → veloce).
   if (period === currentPeriod) {
-    return views
-      .map((e) => ({ entity: e, value: e.primary }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, limit);
+    const rows = await base().where(and(...conds)).orderBy(desc(stats.primaryMetric)).limit(limit);
+    return rows.map((r) => {
+      const e = rowToView(r as Row);
+      return { entity: e, value: e.primary };
+    });
   }
 
-  // Mesi passati: valore di fine mese da una sola query aggregata.
+  // mesi passati: valore di fine mese da una query aggregata
   const rows = await db!
-    .select({
-      slug: entities.slug,
-      kind: entities.kind,
-      value: history.primaryMetric,
-      day: history.day,
-    })
+    .select({ slug: entities.slug, kind: entities.kind, value: history.primaryMetric, day: history.day })
     .from(history)
     .innerJoin(entities, eq(entities.id, history.entityId))
-    .where(
-      and(
-        eq(entities.platform, platform),
-        sql`to_char(${history.day}, 'YYYY-MM') = ${period}`
-      )
-    )
+    .where(and(eq(entities.platform, platform), sql`to_char(${history.day}, 'YYYY-MM') = ${period}`))
     .orderBy(history.day);
   const lastByEntity = new Map<string, number>();
   for (const r of rows) lastByEntity.set(`${r.kind}:${r.slug}`, Number(r.value));
-  return views
-    .map((e) => ({
-      entity: e,
-      value: lastByEntity.get(`${e.kind}:${e.slug}`) ?? e.primary,
-    }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, limit);
+  const top = await base().where(and(...conds)).orderBy(desc(stats.primaryMetric)).limit(limit);
+  return top
+    .map((r) => {
+      const e = rowToView(r as Row);
+      return { entity: e, value: lastByEntity.get(`${e.kind}:${e.slug}`) ?? e.primary };
+    })
+    .sort((a, b) => b.value - a.value);
+}
+
+let _cacheNull: null = null;
+export function invalidateCache(): void {
+  _cacheNull = null;
+  void _cacheNull;
 }

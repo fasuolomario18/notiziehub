@@ -109,8 +109,20 @@ function valueAtPeriod(e: EntityView, period: string): number {
 
 // ════════════════ API pubblica (dispatcher seed ↔ DB) ════════════════
 
+export function invalidateCache(): void {
+  if (hasDb) DB.invalidateCache();
+}
+
 export async function getAllEntities(): Promise<EntityView[]> {
   return hasDb ? DB.getAllEntities() : allViews();
+}
+
+/** Slug minimali indicizzabili per la sitemap (scala-ready). */
+export async function getSitemapSlugs(): Promise<{ kind: Kind; slug: string }[]> {
+  if (hasDb) return DB.getSitemapSlugs();
+  return allViews()
+    .filter((e) => e.indexable)
+    .map((e) => ({ kind: e.kind, slug: e.slug }));
 }
 
 export async function getEntitiesByKind(kind: Kind): Promise<EntityView[]> {

@@ -80,8 +80,8 @@ export async function fetchTopAnime(pages = 2, perPage = 50): Promise<AnimeItem[
         description: stripHtml(m.description ?? ""),
       });
     }
-    // rispetta il rate limit di AniList
-    await new Promise((r) => setTimeout(r, 700));
+    // rispetta il rate limit di AniList (degradato a ~30 req/min)
+    await new Promise((r) => setTimeout(r, 2100));
   }
   return out;
 }

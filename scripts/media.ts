@@ -22,7 +22,7 @@ async function main() {
 
   // ANIME (AniList, nessuna chiave)
   try {
-    const anime = await fetchTopAnime(3, 50);
+    const anime = await fetchTopAnime(40, 50); // ~2000 anime per popolarità
     for (const a of anime) {
       await upsertWatchable(db, schema, {
         kind: "anime",

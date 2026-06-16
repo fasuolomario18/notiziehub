@@ -161,6 +161,26 @@ export async function fetchTrendingVideos(
   }));
 }
 
+/** Ricerca live di canali per query (search.list, 100 unità). Restituisce gli ID. */
+export async function searchChannelIds(query: string, max = 10): Promise<string[]> {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) return [];
+  const url =
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel` +
+    `&maxResults=${max}&q=${encodeURIComponent(query)}&key=${key}`;
+  const res = await fetch(url);
+  if (!res.ok) return [];
+  const json = (await res.json()) as {
+    items?: Array<{ id?: { channelId?: string }; snippet?: { channelId?: string } }>;
+  };
+  const ids: string[] = [];
+  for (const it of json.items ?? []) {
+    const id = it.id?.channelId ?? it.snippet?.channelId;
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
 export function slugify(s: string): string {
   return s
     .toLowerCase()
