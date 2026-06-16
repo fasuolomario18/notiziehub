@@ -9,10 +9,8 @@ import { slugify } from "../src/lib/sources/youtube";
 import type { Watchable } from "../src/lib/sources/persist";
 
 const GENRES = [
-  "italian hip hop", "italian pop", "italian indie", "italian rock", "rap napoletano",
-  "pop", "rock", "hip hop", "rap", "trap", "indie", "edm", "dance pop", "r&b",
-  "latin", "reggaeton", "k-pop", "metal", "jazz", "classical", "country",
-  "house", "techno", "soul", "punk", "folk", "funk", "lo-fi", "drill", "afrobeats",
+  "italian hip hop", "italian pop", "rap", "pop", "rock", "hip hop", "trap",
+  "indie", "edm", "latin", "k-pop", "metal", "r&b", "house", "reggaeton",
 ];
 
 async function main() {
@@ -43,7 +41,7 @@ async function main() {
   console.log(`Artisti salvati: ${await bulkUpsertWatchables(db, schema, aw)}`);
 
   // Brani
-  const tracks = await fetchTracksByYears(2010, 2026);
+  const tracks = await fetchTracksByYears(2016, 2026);
   const tw: Watchable[] = tracks.map((t) => ({
     kind: "track",
     slug: slugify(`${t.name}-${t.artist}`),

@@ -69,7 +69,7 @@ export async function fetchArtistsByGenres(genres: string[]): Promise<SpotifyArt
   const out: SpotifyArtist[] = [];
   const seen = new Set<string>();
   for (const g of genres) {
-    for (let offset = 0; offset <= 490; offset += 10) {
+    for (let offset = 0; offset <= 190; offset += 10) {
       const json = await searchPage(`genre:"${g}"`, "artist", offset, token);
       const items = json?.artists?.items ?? [];
       if (!items.length) break;
@@ -98,7 +98,7 @@ export async function fetchTracksByYears(fromYear: number, toYear: number): Prom
   const out: SpotifyTrack[] = [];
   const seen = new Set<string>();
   for (let year = toYear; year >= fromYear; year--) {
-    for (let offset = 0; offset <= 290; offset += 10) {
+    for (let offset = 0; offset <= 90; offset += 10) {
       const json = await searchPage(`year:${year}`, "track", offset, token);
       const items = json?.tracks?.items ?? [];
       if (!items.length) break;
