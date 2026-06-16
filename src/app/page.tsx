@@ -195,7 +195,7 @@ export default async function Home() {
           </section>
         ) : null}
 
-        <AdSlot slot="home-bottom" />
+        <AdSlot name="native" slot="home-native" />
       </Container>
     </>
   );
