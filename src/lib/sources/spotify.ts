@@ -49,9 +49,10 @@ async function searchPage(
   token: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
+  // App in "development mode": il limite max della search è 10.
   const url =
     `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}` +
-    `&type=${type}&limit=50&offset=${offset}`;
+    `&type=${type}&limit=10&offset=${offset}`;
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (res.status === 429) {
     const wait = Number(res.headers.get("retry-after") ?? "2") * 1000;
@@ -68,7 +69,7 @@ export async function fetchArtistsByGenres(genres: string[]): Promise<SpotifyArt
   const out: SpotifyArtist[] = [];
   const seen = new Set<string>();
   for (const g of genres) {
-    for (let offset = 0; offset <= 950; offset += 50) {
+    for (let offset = 0; offset <= 490; offset += 10) {
       const json = await searchPage(`genre:"${g}"`, "artist", offset, token);
       const items = json?.artists?.items ?? [];
       if (!items.length) break;
@@ -85,7 +86,7 @@ export async function fetchArtistsByGenres(genres: string[]): Promise<SpotifyArt
           url: a.external_urls?.spotify ?? `https://open.spotify.com/artist/${a.id}`,
         });
       }
-      if (items.length < 50) break;
+      if (items.length < 10) break;
     }
   }
   return out;
@@ -97,7 +98,7 @@ export async function fetchTracksByYears(fromYear: number, toYear: number): Prom
   const out: SpotifyTrack[] = [];
   const seen = new Set<string>();
   for (let year = toYear; year >= fromYear; year--) {
-    for (let offset = 0; offset <= 950; offset += 50) {
+    for (let offset = 0; offset <= 290; offset += 10) {
       const json = await searchPage(`year:${year}`, "track", offset, token);
       const items = json?.tracks?.items ?? [];
       if (!items.length) break;
@@ -113,7 +114,7 @@ export async function fetchTracksByYears(fromYear: number, toYear: number): Prom
           url: t.external_urls?.spotify ?? `https://open.spotify.com/track/${t.id}`,
         });
       }
-      if (items.length < 50) break;
+      if (items.length < 10) break;
     }
   }
   return out;
