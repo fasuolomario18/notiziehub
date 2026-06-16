@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getBySlug, getVersusPairs } from "@/lib/data";
+import { getBySlug } from "@/lib/data";
 import type { EntityView } from "@/lib/types";
 import { metricLabel, PLATFORM_LABEL } from "@/lib/types";
 import { entityHref } from "@/lib/links";
@@ -15,8 +15,8 @@ export const dynamicParams = true;
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
-  const pairs = await getVersusPairs();
-  return pairs.map(([a, b]) => ({ a: a.slug, b: b.slug }));
+  // Long tail enorme: generiamo i /vs on-demand (ISR), nessun prerender in build.
+  return [];
 }
 
 async function loadPair(a: string, b: string) {

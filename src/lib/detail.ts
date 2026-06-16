@@ -7,9 +7,16 @@ import { formatCompact } from "./format";
 import { entityHref } from "./links";
 import { absoluteUrl } from "./site";
 
-export async function detailStaticParams(kind: Kind) {
+/**
+ * Per la scala: prerenderizza solo i top-N (per dimensione); il resto è
+ * generato on-demand al primo accesso e poi cachato (ISR). dynamicParams=true.
+ */
+export async function detailStaticParams(kind: Kind, limit = 60) {
   const list = await getEntitiesByKind(kind);
-  return list.map((e) => ({ slug: e.slug }));
+  return [...list]
+    .sort((a, b) => b.primary - a.primary)
+    .slice(0, limit)
+    .map((e) => ({ slug: e.slug }));
 }
 
 export async function detailMetadata(
