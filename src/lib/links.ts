@@ -15,6 +15,12 @@ export function entityHref(e: Pick<EntityView, "kind" | "slug">): string {
       return `/game/${e.slug}`;
     case "video":
       return `/video/${e.slug}`;
+    case "anime":
+      return `/anime/${e.slug}`;
+    case "movie":
+      return `/film/${e.slug}`;
+    case "tv":
+      return `/serie-tv/${e.slug}`;
   }
 }
 
@@ -37,4 +43,7 @@ export const KIND_PLURAL_PATH: Record<Kind, string> = {
   game: "game",
   trend: "trend",
   video: "video",
+  anime: "anime",
+  movie: "film",
+  tv: "serie-tv",
 };

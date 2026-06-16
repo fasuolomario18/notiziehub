@@ -11,6 +11,8 @@ export const dynamicParams = true;
 export const revalidate = 3600;
 
 export async function generateStaticParams() {
+  // On-demand in produzione (tante categorie su DB free-tier).
+  if (process.env.NODE_ENV === "production") return [];
   const cats = await getCategories();
   return cats.map((category) => ({ category }));
 }

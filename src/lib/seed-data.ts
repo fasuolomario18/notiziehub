@@ -7,10 +7,10 @@
  */
 
 export type SeedEntity = {
-  kind: "creator" | "track" | "artist" | "game" | "trend" | "video";
+  kind: "creator" | "track" | "artist" | "game" | "trend" | "video" | "anime" | "movie" | "tv";
   slug: string;
   name: string;
-  platform: "youtube" | "tiktok" | "twitch" | "instagram" | "spotify";
+  platform: "youtube" | "tiktok" | "twitch" | "instagram" | "spotify" | "anilist" | "tmdb";
   country: string; // ISO2
   category: string;
   avatarUrl?: string;
@@ -169,5 +169,57 @@ export const SEED: SeedEntity[] = [
     description: "Video musicale.",
     sourceUrl: "https://www.youtube.com/",
     primary: 3_700_000, secondary: 240_000, dailyGrowth: 190_000, volatility: 0.4,
+  },
+  // ---- ANIME (seed demo) ----
+  {
+    kind: "anime", slug: "one-piece", name: "One Piece", platform: "anilist",
+    country: "JP", category: "shonen",
+    description: "Avventura piratesca, tra gli anime più popolari di sempre.",
+    sourceUrl: "https://anilist.co/anime/21",
+    primary: 520_000, secondary: 88, dailyGrowth: 600, volatility: 0.4,
+  },
+  {
+    kind: "anime", slug: "jujutsu-kaisen", name: "Jujutsu Kaisen", platform: "anilist",
+    country: "JP", category: "shonen",
+    description: "Stregoni e maledizioni, fenomeno globale recente.",
+    sourceUrl: "https://anilist.co/anime/113415",
+    primary: 480_000, secondary: 86, dailyGrowth: 900, volatility: 0.6,
+  },
+  {
+    kind: "anime", slug: "attack-on-titan", name: "Attack on Titan", platform: "anilist",
+    country: "JP", category: "seinen",
+    description: "L'umanità contro i giganti.",
+    sourceUrl: "https://anilist.co/anime/16498",
+    primary: 510_000, secondary: 90, dailyGrowth: 400, volatility: 0.3,
+  },
+  // ---- FILM (seed demo) ----
+  {
+    kind: "movie", slug: "dune-part-two", name: "Dune - Parte Due", platform: "tmdb",
+    country: "US", category: "fantascienza",
+    description: "Kolossal sci-fi.",
+    sourceUrl: "https://www.themoviedb.org/",
+    primary: 12_400, secondary: 83, dailyGrowth: 120, volatility: 0.4,
+  },
+  {
+    kind: "movie", slug: "oppenheimer", name: "Oppenheimer", platform: "tmdb",
+    country: "US", category: "biografico",
+    description: "Il padre della bomba atomica.",
+    sourceUrl: "https://www.themoviedb.org/",
+    primary: 18_900, secondary: 81, dailyGrowth: 90, volatility: 0.3,
+  },
+  // ---- SERIE TV (seed demo) ----
+  {
+    kind: "tv", slug: "one-piece-live-action", name: "One Piece (Live Action)", platform: "tmdb",
+    country: "US", category: "avventura",
+    description: "Adattamento Netflix.",
+    sourceUrl: "https://www.themoviedb.org/",
+    primary: 9_300, secondary: 82, dailyGrowth: 70, volatility: 0.5,
+  },
+  {
+    kind: "tv", slug: "the-last-of-us", name: "The Last of Us", platform: "tmdb",
+    country: "US", category: "dramma",
+    description: "Serie post-apocalittica HBO.",
+    sourceUrl: "https://www.themoviedb.org/",
+    primary: 11_200, secondary: 86, dailyGrowth: 60, volatility: 0.4,
   },
 ];

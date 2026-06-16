@@ -1,5 +1,21 @@
-export type Kind = "creator" | "track" | "artist" | "game" | "trend" | "video";
-export type Platform = "youtube" | "tiktok" | "twitch" | "instagram" | "spotify";
+export type Kind =
+  | "creator"
+  | "track"
+  | "artist"
+  | "game"
+  | "trend"
+  | "video"
+  | "anime"
+  | "movie"
+  | "tv";
+export type Platform =
+  | "youtube"
+  | "tiktok"
+  | "twitch"
+  | "instagram"
+  | "spotify"
+  | "anilist"
+  | "tmdb";
 
 export type HistoryPoint = {
   day: string; // YYYY-MM-DD
@@ -33,6 +49,9 @@ export const KIND_LABEL: Record<Kind, string> = {
   game: "Gioco",
   trend: "Trend",
   video: "Video",
+  anime: "Anime",
+  movie: "Film",
+  tv: "Serie TV",
 };
 
 export const PLATFORM_LABEL: Record<Platform, string> = {
@@ -41,11 +60,15 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
   twitch: "Twitch",
   instagram: "Instagram",
   spotify: "Spotify",
+  anilist: "AniList",
+  tmdb: "TMDB",
 };
 
 /** Unità della metrica primaria per tipo di entità. */
 export function metricLabel(kind: Kind, platform: Platform): string {
   if (kind === "video") return "visualizzazioni";
+  if (kind === "anime") return "fan";
+  if (kind === "movie" || kind === "tv") return "voti";
   if (kind === "track") return "stream";
   if (kind === "trend") return "video";
   if (platform === "twitch") return "follower";

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { EntityView } from "@/lib/types";
 import { metricLabel, KIND_LABEL, PLATFORM_LABEL } from "@/lib/types";
-import { entityHref } from "@/lib/links";
+import { entityHref, KIND_PLURAL_PATH } from "@/lib/links";
 import { formatCompact, formatFull, formatPct } from "@/lib/format";
 import { GrowthChart } from "./GrowthChart";
 import { Odometer } from "./Odometer";
@@ -18,6 +18,9 @@ const PLURAL: Record<string, string> = {
   trend: "Trend",
   game: "Giochi",
   video: "Video",
+  anime: "Anime",
+  movie: "Film",
+  tv: "Serie TV",
 };
 
 export function EntityProfile({
@@ -37,7 +40,7 @@ export function EntityProfile({
         <Breadcrumbs
           items={[
             { name: "Home", path: "/" },
-            { name: PLURAL[e.kind] ?? e.kind, path: `/${e.kind}` },
+            { name: PLURAL[e.kind] ?? e.kind, path: `/${KIND_PLURAL_PATH[e.kind]}` },
             { name: e.name, path: entityHref(e) },
           ]}
         />

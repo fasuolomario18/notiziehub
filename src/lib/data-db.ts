@@ -66,18 +66,38 @@ const SELECT = {
   delta7d: stats.delta7d,
 };
 
+/** Query diretta al DB (sempre), usata anche dallo snapshot di build. */
+export async function fetchAllFromDb(): Promise<EntityView[]> {
+  const rows = await db!
+    .select(SELECT)
+    .from(entities)
+    .leftJoin(stats, eq(stats.entityId, entities.id));
+  return rows.map((r) => rowToView(r as Row));
+}
+
 // Memo di processo: collassa le tante chiamate (SSG multi-pagina) in 1 query.
 let _rowsCache: { at: number; data: EntityView[] } | null = null;
 const ROWS_TTL_MS = 60_000;
 
 async function allRows(): Promise<EntityView[]> {
+  // In build su DB free-tier (BUILD_SNAPSHOT=1) leggi lo snapshot su file:
+  // zero query al DB durante la generazione delle pagine.
+  if (process.env.BUILD_SNAPSHOT === "1") {
+    if (!_rowsCache) {
+      const { readFileSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      try {
+        const raw = readFileSync(join(process.cwd(), "data", "snapshot.json"), "utf8");
+        _rowsCache = { at: Date.now(), data: JSON.parse(raw) as EntityView[] };
+      } catch {
+        _rowsCache = { at: Date.now(), data: [] };
+      }
+    }
+    return _rowsCache.data;
+  }
   const now = Date.now();
   if (_rowsCache && now - _rowsCache.at < ROWS_TTL_MS) return _rowsCache.data;
-  const rows = await db!
-    .select(SELECT)
-    .from(entities)
-    .leftJoin(stats, eq(stats.entityId, entities.id));
-  const data = rows.map((r) => rowToView(r as Row));
+  const data = await fetchAllFromDb();
   _rowsCache = { at: now, data };
   return data;
 }

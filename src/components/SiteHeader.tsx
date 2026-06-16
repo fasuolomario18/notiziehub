@@ -4,10 +4,11 @@ import { SITE } from "@/lib/site";
 const NAV = [
   { href: "/creator", label: "Creator" },
   { href: "/artist", label: "Musica" },
+  { href: "/film", label: "Film" },
+  { href: "/serie-tv", label: "Serie TV" },
+  { href: "/anime", label: "Anime" },
   { href: "/video", label: "Video" },
   { href: "/classifiche", label: "Classifiche" },
-  { href: "/trend", label: "Trend" },
-  { href: "/vs", label: "Versus" },
 ];
 
 export function SiteHeader() {

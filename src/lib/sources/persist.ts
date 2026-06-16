@@ -85,6 +85,98 @@ export async function upsertCreator(
     });
 }
 
+export type Watchable = {
+  kind: "anime" | "movie" | "tv";
+  slug: string;
+  name: string;
+  platform: "anilist" | "tmdb";
+  country: string;
+  category: string | null;
+  avatarUrl?: string;
+  description: string;
+  sourceUrl: string;
+  primary: number; // popolarità / n. voti
+  secondary: number; // punteggio
+};
+
+/** Upsert generico per anime/film/serie (kind dato): primary=popolarità, secondary=punteggio. */
+export async function upsertWatchable(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  schema: any,
+  w: Watchable
+): Promise<void> {
+  const { entities, stats, history } = schema;
+  const today = new Date().toISOString().slice(0, 10);
+
+  const [row] = await db
+    .insert(entities)
+    .values({
+      kind: w.kind,
+      slug: w.slug,
+      name: w.name,
+      platform: w.platform,
+      country: w.country,
+      category: w.category,
+      avatarUrl: w.avatarUrl ?? null,
+      description: w.description,
+      sourceUrl: w.sourceUrl,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [entities.kind, entities.slug],
+      set: {
+        name: w.name,
+        avatarUrl: w.avatarUrl ?? null,
+        description: w.description,
+        updatedAt: new Date(),
+      },
+    })
+    .returning({ id: entities.id });
+
+  const entityId = row.id;
+
+  await db
+    .insert(history)
+    .values({ entityId, day: today, primaryMetric: w.primary, secondaryMetric: w.secondary })
+    .onConflictDoNothing();
+
+  const prev = await db.execute(sql`
+    SELECT primary_metric FROM history
+    WHERE entity_id = ${entityId} AND day < ${today}
+    ORDER BY day DESC LIMIT 1
+  `);
+  const prev7 = await db.execute(sql`
+    SELECT primary_metric FROM history
+    WHERE entity_id = ${entityId} AND day <= (CURRENT_DATE - INTERVAL '7 day')
+    ORDER BY day DESC LIMIT 1
+  `);
+  const prevVal = Number(prev?.[0]?.primary_metric ?? w.primary);
+  const prev7Val = Number(prev7?.[0]?.primary_metric ?? w.primary);
+
+  await db
+    .insert(stats)
+    .values({
+      entityId,
+      primaryMetric: w.primary,
+      secondaryMetric: w.secondary,
+      delta24h: w.primary - prevVal,
+      delta7d: w.primary - prev7Val,
+      capturedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: stats.entityId,
+      set: {
+        primaryMetric: w.primary,
+        secondaryMetric: w.secondary,
+        delta24h: w.primary - prevVal,
+        delta7d: w.primary - prev7Val,
+        capturedAt: new Date(),
+      },
+    });
+}
+
 /** Upsert di un video di tendenza (kind="video"): primary=views, secondary=likes. */
 export async function upsertVideo(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

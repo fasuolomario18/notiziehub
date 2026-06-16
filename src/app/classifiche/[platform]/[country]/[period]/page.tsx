@@ -24,6 +24,7 @@ function periodLabel(p: string) {
 }
 
 export async function generateStaticParams() {
+  if (process.env.NODE_ENV === "production") return [];
   const configs = await getRankingConfigs();
   return configs.map((c) => ({
     platform: c.platform,

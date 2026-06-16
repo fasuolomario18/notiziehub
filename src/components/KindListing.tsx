@@ -40,6 +40,24 @@ const TITLES: Record<Kind, { h1: string; intro: string; plural: string }> = {
     intro:
       "I video più visti del momento in Italia, con visualizzazioni, like e crescita. Aggiornati ogni giorno.",
   },
+  anime: {
+    h1: "Anime",
+    plural: "Anime",
+    intro:
+      "Gli anime più popolari e meglio votati, con punteggio, fan e classifiche. Dati pubblici da AniList.",
+  },
+  movie: {
+    h1: "Film",
+    plural: "Film",
+    intro:
+      "I film più popolari e votati del momento, con voti, valutazione e tendenze. Dati pubblici da TMDB.",
+  },
+  tv: {
+    h1: "Serie TV",
+    plural: "Serie TV",
+    intro:
+      "Le serie TV più seguite e votate, con voti, valutazione e tendenze. Dati pubblici da TMDB.",
+  },
 };
 
 export async function KindListing({ kind }: { kind: Kind }) {
