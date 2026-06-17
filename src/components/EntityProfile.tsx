@@ -79,18 +79,18 @@ export function EntityProfile({
           <StatBlock label="Totale" value={formatFull(e.primary)} />
           <StatBlock
             label="Ultime 24h"
-            value={formatCompact(e.delta24h)}
-            accent={e.delta24h >= 0 ? "rise" : "signal"}
+            value={e.delta24h === 0 ? "—" : formatCompact(e.delta24h)}
+            accent={e.delta24h === 0 ? undefined : e.delta24h > 0 ? "rise" : "signal"}
           />
           <StatBlock
             label="Ultimi 7 giorni"
-            value={formatCompact(e.delta7d)}
-            accent={e.delta7d >= 0 ? "rise" : "signal"}
+            value={e.delta7d === 0 ? "—" : formatCompact(e.delta7d)}
+            accent={e.delta7d === 0 ? undefined : e.delta7d > 0 ? "rise" : "signal"}
           />
           <StatBlock
             label="Variazione 7g"
-            value={formatPct(e.delta7dPct)}
-            accent={e.delta7dPct >= 0 ? "rise" : "signal"}
+            value={e.delta7d === 0 ? "—" : formatPct(e.delta7dPct)}
+            accent={e.delta7d === 0 ? undefined : e.delta7dPct > 0 ? "rise" : "signal"}
           />
         </div>
 

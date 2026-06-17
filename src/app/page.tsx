@@ -21,9 +21,10 @@ const PILLARS = [
 ];
 
 export default async function Home() {
-  const [rising, topCreators, artists, trends, videos, anime, manga, movies, series, ticker] =
+  const [rising, topOverall, topCreators, artists, trends, videos, anime, manga, movies, series, ticker] =
     await Promise.all([
       getLeaderboard({ sort: "rising", limit: 10 }),
+      getLeaderboard({ sort: "top", limit: 10 }),
       getLeaderboard({ kind: "creator", sort: "top", limit: 6 }),
       getLeaderboard({ kind: "artist", sort: "top", limit: 6 }),
       getEntitiesByKind("trend"),
@@ -36,11 +37,23 @@ export default async function Home() {
     ]);
   const counts = await getCounts();
 
-  const topMover = rising[0];
+  // "Movimento del giorno" solo se c'è davvero un'entità in crescita reale.
+  // Finché lo storico è in raccolta (delta a 0) mostriamo invece chi è in vetta.
+  const topMover = rising.find((e) => e.delta7d > 0) ?? null;
+  const hasMovers = topMover !== null;
+  // La hero-board mostra i veri "in salita" solo quando esistono; altrimenti
+  // cade sui più popolari, così non si vedono mai righe a "—" spacciate per trend.
+  const heroBoard = hasMovers ? rising : topOverall;
+  const topByPopularity = topOverall[0] ?? topCreators[0] ?? artists[0] ?? null;
 
   return (
     <>
-      <JsonLd data={[websiteSchema(), itemListSchema(rising, "In salita ora")]} />
+      <JsonLd
+        data={[
+          websiteSchema(),
+          itemListSchema(heroBoard, hasMovers ? "In salita ora" : "I più seguiti"),
+        ]}
+      />
       <Ticker items={ticker} />
 
       <Container className="py-8">
@@ -48,7 +61,7 @@ export default async function Home() {
         <div className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <p className="text-sm font-medium uppercase tracking-widest text-rise">
-              In salita ora
+              {hasMovers ? "In salita ora" : "Il tabellone vivo"}
             </p>
             <h1 className="mt-1 font-display text-4xl leading-tight tracking-tight sm:text-5xl">
               Il tabellone vivo della{" "}
@@ -98,14 +111,37 @@ export default async function Home() {
                   +{formatCompact(topMover.delta7d)} negli ultimi 7 giorni
                 </p>
               </Card>
+            ) : topByPopularity ? (
+              <Card className="mt-6 p-5">
+                <p className="text-xs uppercase tracking-wide text-muted">
+                  In vetta ora
+                </p>
+                <p className="mt-1 font-display text-2xl">
+                  {topByPopularity.name}
+                </p>
+                <p className="mt-2">
+                  <Odometer
+                    value={topByPopularity.primary}
+                    className="text-4xl text-peak"
+                  />{" "}
+                  <span className="text-sm text-muted">
+                    {topByPopularity.platform}
+                  </span>
+                </p>
+                <p className="mt-1 text-sm text-muted">
+                  Il più seguito che stiamo tracciando.
+                </p>
+              </Card>
             ) : null}
           </div>
 
           <Card className="overflow-hidden">
             <div className="border-b border-line px-4 py-3">
-              <h2 className="font-display text-lg">Leaderboard live</h2>
+              <h2 className="font-display text-lg">
+                {hasMovers ? "Leaderboard live" : "Più seguiti ora"}
+              </h2>
             </div>
-            <Leaderboard items={rising} />
+            <Leaderboard items={heroBoard} />
           </Card>
         </div>
 

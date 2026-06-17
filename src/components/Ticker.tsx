@@ -9,8 +9,11 @@ import { formatDelta, direction } from "@/lib/format";
  * Su prefers-reduced-motion l'animazione è disattivata (vedi globals.css).
  */
 export function Ticker({ items }: { items: EntityView[] }) {
-  if (items.length === 0) return null;
-  const row = [...items, ...items]; // duplicato per loop seamless
+  // Solo entità con un movimento reale: finché lo storico è in raccolta il
+  // ticker resta nascosto invece di scorrere una fila di "0".
+  const movers = items.filter((e) => e.delta7d !== 0);
+  if (movers.length === 0) return null;
+  const row = [...movers, ...movers]; // duplicato per loop seamless
   return (
     <div
       className="overflow-hidden border-b border-line bg-surface/60"
